@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow title="크게보기" layout="absolute" width="100%" height="100%" showCloseButton="true" close="close_clickHandler()" xmlns:mx="http://www.adobe.com/2006/mxml" backgroundColor="#666666">
+	<mx:Script>
+		<![CDATA[
+			import flash.display.Bitmap;
+			import flash.events.Event;
+			import flash.events.TimerEvent;
+			import flash.net.FileReference;
+			import flash.utils.Timer;
+			
+			import mx.graphics.codec.JPEGEncoder;
+			import mx.managers.PopUpManager;
+			
+			import panel.LoadingPanel;
+			
+			import util.blendfilter.BlendFilter;
+			import util.blendfilter.BlendFilterPaser;
+			
+			
+			[Bindable] public var fileR:FileReference;
+			
+			
+			public function destory():void{
+				if(img){
+					(img.content as Bitmap).bitmapData.dispose();
+					img = null;
+				}
+				fileR = null;
+				this.removeAllChildren();
+			}
+			
+			private function complete_imageHandler():void{
+				loadingImg.visible = false;
+			}
+			
+			
+			private var fileStream:FileStream;
+			
+			private function img_clickHandler():void{
+				if(blendCb.selected && _filterBitmap){
+					if(loadPanel == null){
+						loadPanel = new LoadingPanel();
+						loadPanel.textLabel = "만드는중..";
+						PopUpManager.addPopUp(loadPanel, this, true);
+						PopUpManager.centerPopUp(loadPanel);
+						
+						var timer:Timer = new Timer(1000, 1);
+						timer.addEventListener(TimerEvent.TIMER_COMPLETE, make_timerCompleteHandler);
+						timer.start();
+					}
+					
+					return;
+				}
+				close_clickHandler();
+			}
+			
+			
+			private function make_timerCompleteHandler(e:TimerEvent):void{
+				var timer:Timer = e.target as Timer;
+				timer.removeEventListener(TimerEvent.TIMER_COMPLETE, make_timerCompleteHandler);
+				
+				make();
+			}
+			
+			
+			private function make():void{
+				var bt:ByteArray = new JPEGEncoder().encode(_filterBitmap.bitmapData);
+				
+				var file:File = File.desktopDirectory;
+				file = file.resolvePath('metie_'+fileR.name);
+				
+				fileStream = new FileStream();
+				fileStream.addEventListener(Event.COMPLETE, files_completeHandler);
+				fileStream.addEventListener(ProgressEvent.PROGRESS, file_progressHandler);
+				fileStream.addEventListener(Event.CLOSE, fileClosed);
+				
+				//fileStream.open(file, FileMode.WRITE);
+				fileStream.openAsync(file, FileMode.WRITE);
+				fileStream.writeBytes(bt,0, bt.length);
+				fileStream.close();
+				trace("make!");
+			}
+			
+			private var loadPanel:LoadingPanel;
+			
+			private function file_progressHandler(e:ProgressEvent):void{
+				trace("pro:", e.bytesLoaded, e.bytesTotal);
+				if(loadPanel){
+					loadPanel.progressBar.setProgress(e.bytesLoaded, e.bytesTotal);
+				}
+			}
+			
+			
+			private function fileClosed(e:Event):void{
+				trace("file close");
+				fileStream = null;
+				PopUpManager.removePopUp(loadPanel);
+				loadPanel = null;
+				
+				this.dispatchEvent(new Event("blend_complete"));
+				close_clickHandler();
+			}
+			
+			
+			private function files_completeHandler(e:Event):void{
+				trace("complete");
+			}
+			
+			
+			private var _tempBitmapData:BitmapData;
+			private var _filter_bitmap:Bitmap;
+			private var _blendBitmap:Bitmap;
+			private var _blendFilters:String;
+			private var _tempBitmapDataClone:BitmapData;
+			private var _filterBitmap:Bitmap;
+			private var _temp_bitmap:Bitmap;
+			
+			private function imgLoadHandler(e:Event):void{
+				loader.contentLoaderInfo.removeEventListener(Event.COMPLETE, imgLoadHandler);
+				
+				_tempBitmapData = (e.target.content as Bitmap).bitmapData;
+				
+				var fileterStr:String = "blur|3|3+overlay+screen";
+				var blendArr:Array = BlendFilterPaser.toBlendArray(fileterStr);
+				
+				_filter_bitmap = BlendFilter.getInstance().getBlendBitmap(_tempBitmapData, blendArr, _tempBitmapData.width, _tempBitmapData.height);
+				_blendBitmap = blendFilterDraw(_filter_bitmap.bitmapData);		
+				BlendFilter.dispose();		
+			}
+			
+			private var loader:Loader;
+			
+			private function blur_clickHandler():void{
+				if(blendCb.selected){
+					if(loader == null){
+						loader = new Loader();
+					}
+					loader.contentLoaderInfo.addEventListener(Event.COMPLETE, imgLoadHandler);
+					loader.loadBytes(fileR.data);
+				}
+				else{
+					if(_filterBitmap){
+						_filterBitmap.bitmapData.dispose();
+						_filterBitmap = null;
+					}
+					img.source = fileR.data;
+				}
+			}
+			
+			
+			// 넘겨받은 비트맵을 포토폼에 그립니다. 
+			public function blendFilterDraw(bitmap:BitmapData):Bitmap{
+				
+				blendFilterDispose();
+				
+				_filterBitmap = new Bitmap(bitmap,"auto",true);
+				_filterBitmap.name = "filterBitmap";
+				
+				_filterBitmap.x = -1*(_filterBitmap.width /2);
+				_filterBitmap.y = -1*(_filterBitmap.height /2);
+				
+				img.source = _filterBitmap;
+				
+				//오리지널 삭제..
+				(loader.content as Bitmap).bitmapData.dispose();
+				System.gc();	
+				return _filterBitmap;
+			}
+			
+			// filterBitmap 을 제거합니다.
+			public function blendFilterDispose():void{
+				_filterBitmap = this.getChildByName("filterBitmap") as Bitmap;
+				if(_filterBitmap != null){
+					this.removeChild(_filterBitmap);
+					
+					if(_filterBitmap.bitmapData != null){
+						_filterBitmap.bitmapData.dispose();
+						_filterBitmap.bitmapData = null;
+					}
+					
+					_filterBitmap = null;
+				}
+				
+				if(_blendBitmap != null){
+					if(_blendBitmap.bitmapData != null){
+						_blendBitmap.bitmapData.dispose();
+						_blendBitmap.bitmapData = null;
+					}
+					_blendBitmap = null;
+				}
+				
+				if(_temp_bitmap != null){
+					if(_temp_bitmap.bitmapData != null){
+						_temp_bitmap.bitmapData.dispose();
+						_temp_bitmap.bitmapData = null;
+					}
+					_temp_bitmap = null;
+				}
+			}
+			
+			
+			private function close_clickHandler():void{
+				this.dispatchEvent(new Event("img_complete"));
+				PopUpManager.removePopUp(this);
+			}
+			
+		]]>
+	</mx:Script>
+	<mx:Image id="loadingImg" smoothBitmapContent="true" source="@Embed('/assets/icons/loading.swf')" width="25" height="25" horizontalCenter="0" verticalCenter="0"/>
+	<mx:VBox width="100%" height="100%" horizontalAlign="center" verticalAlign="middle" paddingBottom="4" paddingLeft="4" paddingRight="4" paddingTop="4">
+		<mx:Image id="img" click="close_clickHandler()" buttonMode="true" source="{fileR.data}" complete="complete_imageHandler()" smoothBitmapContent="true" width="300" height="300" horizontalAlign="center" verticalAlign="middle"/>
+		<mx:Label text="사진의 사이즈가 클 경우 다소 오래걸릴 수 있습니다."/>
+		<mx:HBox width="100%" horizontalGap="2" horizontalAlign="center">
+			<mx:CheckBox id="blendCb" label="뽀샤시효과" click="blur_clickHandler()" fontWeight="bold" styleName="todayText" fontSize="11"/>
+			<mx:LinkButton label="만들기" click="img_clickHandler()"/>
+			<mx:LinkButton label="닫기" click="close_clickHandler()"/>
+		</mx:HBox>
+	</mx:VBox>
+	
+</mx:TitleWindow>

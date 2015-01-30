@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow title="크게보기" creationComplete="create()" layout="absolute" width="100%" height="100%" showCloseButton="true" close="{PopUpManager.removePopUp(this)}" xmlns:mx="http://www.adobe.com/2006/mxml" backgroundColor="#666666">
+	<mx:Script>
+		<![CDATA[
+			import flash.display.Bitmap;
+			import flash.net.URLRequest;
+			import flash.net.navigateToURL;
+			
+			import mx.managers.PopUpManager;
+			
+			import response.Post;
+			
+			
+			private var photo_url:String;
+			
+			private var _post:Post;
+			
+			private var _isCreate:Boolean = false;
+
+			
+			public function get post():Post
+			{
+				return _post;
+			}
+
+			public function set post(value:Post):void
+			{
+				_post = value;
+				photo_url = value.photoUrl;
+				if(_isCreate){
+					img.source = photo_url;
+				}
+			}
+			
+			
+			private function create():void{
+				img.source = photo_url;
+				_isCreate = true;
+			}
+			
+			public function destory():void{
+				if(img){
+					(img.content as Bitmap).bitmapData.dispose();
+					img = null;
+				}
+				photo_url = null;
+				this.removeAllChildren();
+			}
+			
+			
+			private function complete_imageHandler():void{
+				loadingImg.visible = false;
+			}
+			
+			
+			private function img_clickHandler():void{
+				PopUpManager.removePopUp(this);
+			}
+			
+			
+			private function webview_clickHandler():void{
+				navigateToURL(new URLRequest(photo_url), "_blank");
+			}
+
+		]]>
+	</mx:Script>
+	<mx:Image id="loadingImg" smoothBitmapContent="true" source="@Embed('/assets/icons/loading.swf')" width="25" height="25" horizontalCenter="0" verticalCenter="0"/>
+	<mx:VBox width="100%" height="100%" horizontalAlign="center" verticalAlign="middle" paddingBottom="4" paddingLeft="4" paddingRight="4" paddingTop="4">
+		<mx:Image id="img" click="img_clickHandler()" buttonMode="true" source="{photo_url}" complete="complete_imageHandler()" smoothBitmapContent="true" width="300" height="300" horizontalAlign="center" verticalAlign="middle"/>
+		<mx:HBox width="100%" horizontalGap="2" horizontalAlign="center">
+			<mx:LinkButton label="웹에서 보기" click="webview_clickHandler()"/>
+			<mx:LinkButton label="닫기" click="img_clickHandler()"/>
+		</mx:HBox>
+	</mx:VBox>
+	
+</mx:TitleWindow>

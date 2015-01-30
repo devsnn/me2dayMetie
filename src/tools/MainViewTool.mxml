@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox creationComplete="create()" verticalGap="0" xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%" xmlns:comp="comp.*">
+	<mx:Script>
+		<![CDATA[
+			import com.lhd.MeConnect;
+			
+			import comp.*;
+			import comp.alertwindow.AlertMessageBox;
+			import comp.alertwindow.AlertWindowEvent;
+			import comp.alertwindow.Messenger;
+			
+			import flash.events.Event;
+			
+			import mx.events.ResizeEvent;
+			
+			import tools.listtool.IItemList;
+			import tools.listtool.ItemListVbox;
+			
+			
+			private var to_user_id:String;
+
+
+
+			protected function user_clickHandler(event:UserPostPageEvent):void
+			{
+				to_user_id = event.user_id;
+				
+				if(toUserList){
+					toUserList.destory();
+					toUserList.to_user_id = to_user_id;
+					toUserList.post_type = MeConnect.POST_TOUSER;
+					viewStack.selectedChild = toUserList;
+				}
+				else{
+					createToUserListBox();
+				}
+			}
+			
+			
+			private function create():void{
+				createStreamBox();
+				viewStack.selectedIndex = 0;
+				this.addEventListener(ResizeEvent.RESIZE, list_resizeHandler);
+				this.addEventListener("user_click", user_clickHandler);
+				viewStack.addEventListener(MouseEvent.MOUSE_WHEEL, mouseWheelHandler);
+				Messenger.getInstance.addEventListener(AlertWindowEvent.ITEM_INSERT, alert_itemInsertHandler);
+				Messenger.getInstance.start();
+			}
+			
+			private function mouseWheelHandler(e:MouseEvent):void{
+				if(e.delta.toString().indexOf("-") != -1){
+					this.verticalScrollPosition += 20;
+				}
+				else{
+					if(verticalScrollPosition > 0){
+						this.verticalScrollPosition -= 20;
+					}
+				}
+			}
+			
+			
+			private function alert_itemInsertHandler(e:AlertWindowEvent):void{
+				alertBox(e.item_type, e.item);
+			}
+			
+			private var alertMsgBox:AlertMessageBox;
+			
+			private function alertBox(type:String, itemObj:Object):void{
+				var lbText:String = "";
+				switch(type){
+					case "post":
+						lbText = "<font color='#3577BB'>"+itemObj.author.nickname+"</font>님이 포스트를 등록하셨습니다.";
+						break;
+					
+					case "comment":
+						lbText = "<font color='#3577BB'>"+itemObj.author.nickname+"</font>님이 댓글을 등록하셨습니다.";
+						break;
+				} 
+				
+				if(alertMsgBox == null){
+					alertMsgBox = new AlertMessageBox();
+					dateBox.addChild(alertMsgBox);
+				}
+				alertMsgBox.startMsg = lbText;
+			}
+			
+			
+			
+			
+			private function list_resizeHandler(e:ResizeEvent):void{
+				if(streamList){
+					streamList.resize(e.target.width, e.target.height-80);
+				}
+				if(myList){
+					myList.resize(e.target.width, e.target.height-80);
+				}
+				if(mentionedList){
+					mentionedList.resize(e.target.width, e.target.height-80);
+				}
+				if(toUserList){
+					toUserList.resize(e.target.width, e.target.height-80);
+				}
+			}
+			
+			private var streamList:ItemListVbox;
+			private var myList:ItemListVbox;
+			private var mentionedList:ItemListVbox;
+			private var credit:CreditBox;
+			private var toUserList:ItemListVbox;
+			
+			private function createStreamBox():void{
+				streamList = new ItemListVbox();
+				streamList.post_type = MeConnect.POST_STREAM;
+				viewStack.addChild(streamList);
+				viewStack.selectedChild = streamList;
+			}
+			
+			private function createMyListBox():void{
+				myList = new ItemListVbox();
+				myList.post_type = MeConnect.POST_MY;
+				viewStack.addChild(myList);
+				viewStack.selectedChild = myList;
+			}
+			
+			private function createMentionedListBox():void{
+				mentionedList = new ItemListVbox();
+				mentionedList.post_type = MeConnect.POST_MENTIONED;
+				viewStack.addChild(mentionedList);
+				viewStack.selectedChild = mentionedList;
+			}
+			
+			
+			private function createToUserListBox():void{
+				toUserList = new ItemListVbox();
+				toUserList.to_user_id = to_user_id;
+				toUserList.post_type = MeConnect.POST_TOUSER;
+				viewStack.addChild(toUserList);
+				viewStack.selectedChild = toUserList;
+			}
+			
+			
+			private function createCredit():void{
+				credit = new CreditBox();
+				credit.percentHeight = 100;
+				credit.percentWidth = 100;
+				viewStack.addChild(credit);
+				viewStack.selectedChild = credit;
+			}
+			
+			
+			private function refresh():void{
+				(viewStack.selectedChild as IItemList).destory();
+				(viewStack.selectedChild as IItemList).refresh();
+			}
+			
+			
+			/* 메뉴 클릭.. */
+			private function stream_clickHandler():void{
+				if(streamList){
+					viewStack.selectedChild = streamList;
+				}
+				else{
+					createStreamBox();
+				}
+			}
+			
+			
+			private function my_clickHandler():void{
+				if(myList){
+					viewStack.selectedChild = myList;
+				}
+				else{
+					createMyListBox();
+				}
+			}
+			
+			
+			private function mentioned_clickHandler():void{
+				if(mentionedList){
+					viewStack.selectedChild = mentionedList;
+				}
+				else{
+					createMentionedListBox();
+				}
+			}
+			
+			
+			private function credit_clickHandler():void{
+				if(credit){
+					viewStack.selectedChild = credit;
+				}
+				else{
+					createCredit();
+				}
+			}
+			
+			
+			/* 글쓰기 */
+			private function write_clickHandler():void{
+				createWriteBox();
+			}
+			
+			
+			private var writeBox:WritePostBox;
+			
+			private function createWriteBox():void{
+				if(writeBox == null){
+					writeBox = new WritePostBox();
+					writeBox.addEventListener("write_complete", write_completeHandler);
+					this.addChildAt(writeBox, 1);
+				}
+				else{
+					this.removeChild(writeBox);
+					writeBox.destory();
+					writeBox = null;
+				}
+			}
+			
+			
+			private function write_completeHandler(e:Event):void{
+				refresh();
+			}
+
+		]]>
+	</mx:Script>
+	<comp:DateBox id="dateBox" width="100%" height="40" write_click="write_clickHandler()"/>
+	<mx:ViewStack id="viewStack" width="100%" height="100%" paddingTop="4" paddingBottom="4" paddingLeft="4" paddingRight="4"/>
+	<comp:MenuBox width="100%" height="40"
+				  refresh_click="refresh()"
+				  stream_click="stream_clickHandler()"
+				  my_click="my_clickHandler()"
+				  mentioned_click="mentioned_clickHandler()"
+				  credit_click="credit_clickHandler()"
+				  />
+</mx:VBox>

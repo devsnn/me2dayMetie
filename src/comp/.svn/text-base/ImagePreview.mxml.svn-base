@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow title="크게보기" layout="absolute" width="100%" height="100%" showCloseButton="true" close="{PopUpManager.removePopUp(this)}" xmlns:mx="http://www.adobe.com/2006/mxml" backgroundColor="#3F3F3F">
+	<mx:Script>
+		<![CDATA[
+			import mx.managers.PopUpManager;
+			
+			import response.Post;
+			
+			
+			[Bindable] private var photo_url:String;
+			
+			private var _post:Post;
+
+			
+			public function get post():Post
+			{
+				return _post;
+			}
+
+			public function set post(value:Post):void
+			{
+				_post = value;
+				photo_url = value.photoUrl;
+			}
+			
+			
+			private function complete_imageHandler():void{
+				loadingImg.visible = false;
+			}
+
+		]]>
+	</mx:Script>
+	<mx:Image id="loadingImg" smoothBitmapContent="true" source="@Embed('/assets/icons/loading.swf')" width="25" height="25" horizontalCenter="0" verticalCenter="0"/>
+	<mx:VBox width="100%" height="100%" horizontalAlign="center" verticalAlign="middle" paddingBottom="4" paddingLeft="4" paddingRight="4" paddingTop="4">
+		<mx:Image source="{photo_url}" complete="complete_imageHandler()" smoothBitmapContent="true" width="300" height="300" horizontalAlign="center" verticalAlign="middle"/>
+	</mx:VBox>
+	
+</mx:TitleWindow>

@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox initialize="init()" verticalGap="10" paddingBottom="4" paddingLeft="4" paddingRight="4" paddingTop="4" xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%" xmlns:comp="comp.*">
+	<mx:Metadata>
+		[Event(name="tagComplete",type="flash.events.Event")]
+		[Event(name="user_click",type="comp.UserPostPageEvent")]
+	</mx:Metadata>
+	<mx:Script>
+		<![CDATA[
+			import auth.MetieVer;
+			
+			import com.lhd.MeConnect;
+			import com.lhd.events.MeConnectEvent;
+			
+			import comp.alertwindow.Messenger;
+			
+			import flash.events.Event;
+			import flash.events.TextEvent;
+			import flash.net.SharedObject;
+			import flash.net.URLRequest;
+			
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			
+			import response.Person;
+			
+			import util.MetieUtil;
+			import util.Styles;
+			
+			[Bindable] private var person_sedurn:Person;
+			[Bindable] private var person_onemind:Person;
+			
+			[Bindable] private var thanksText:String;
+			
+			private function init():void{
+				//get_sedurn();
+				//get_onemind();
+				thanksText = MetieUtil.ahrefLinkReplace("미티를 후원해주신 SilverFox님, 허니몬님, 꽃띠앙님, 요체키럽님, 유명할가수씨님, 현준님, 시우랭님, 김젼님, 빡쭈님, 낭만곰팅님, 옥팀장님, tjdqls109님 감사합니다.:) 작은응원은 개발자에게 큰 힘이 된답니다! <br><a href='http://me2day.net/me2/app/view/a38'>[후원하기]</a>");
+			}
+			
+			
+			private function get_sedurn():void{
+				var connect:MeConnect = new MeConnect();
+				connect.addEventListener(MeConnectEvent.GETPERSON_RESULT, result_sedurnHandler);
+				connect.getperson("sedurn");
+			}
+			
+			private function result_sedurnHandler(e:MeConnectEvent):void{
+				person_sedurn = new Person(e.data);
+			}
+			
+			private function get_onemind():void{
+				var connect:MeConnect = new MeConnect();
+				connect.addEventListener(MeConnectEvent.GETPERSON_RESULT, result_onemindHandler);
+				connect.getperson("onemind");
+			}
+			
+			private function result_onemindHandler(e:MeConnectEvent):void{
+				person_onemind = new Person(e.data);
+			}
+			
+			
+			private function tagsave_clickHandler():void{
+				var so:SharedObject = SharedObject.getLocal("metie");
+				so.data.tagText = tagInput.getTextField().text;
+				so.flush(50000);
+				
+				Alert.show("저장되었습니다.", "알림", 4, this);
+				
+				this.dispatchEvent(new Event("tagComplete"));
+			}
+			
+			
+
+			protected function tagInput_creationCompleteHandler(event:FlexEvent):void
+			{
+				var so:SharedObject = SharedObject.getLocal("metie");
+				if(so.data.tagText != null){
+					tagInput.text = so.data.tagText;
+				}
+			}
+			
+			private function text_linkHandler(e:TextEvent):void{
+				if(e.text.indexOf("http://me2day.net/") != -1 && e.text.indexOf("#") == -1){
+					var uid:String = e.text.substring(e.text.lastIndexOf("/")+1, e.text.length);
+					this.dispatchEvent(new UserPostPageEvent("user_click", uid, true));
+				}
+			}
+			
+			
+			private function uid_clickHandler(uid:String):void{
+				this.dispatchEvent(new UserPostPageEvent("user_click", uid, true));
+			}
+
+
+			protected function startCB_changeHandler(event:Event):void
+			{
+				NativeApplication.nativeApplication.startAtLogin = startCB.selected;
+			}
+			
+			
+			private var link_text:String;
+			
+			private function todayText_linkHandler(e:TextEvent):void{
+				link_text = e.text;
+				Alert.show("브라우져에서 열겠습니까?", "알림", Alert.OK+Alert.CANCEL, this, close_linkHandler);
+			}
+			
+			private function close_linkHandler(e:CloseEvent):void{
+				if(Alert.OK == e.detail){
+					navigateToURL(new URLRequest(link_text), "_blank");
+				}
+			}
+			
+
+			
+			
+		]]>
+	</mx:Script>
+	<mx:DropShadowFilter id="shadow" distance="2" alpha="0.3" blurX="5" blurY="5" color="#666666" strength="1"/>
+	
+	<comp:GradientVBox horizontalAlign="center" verticalAlign="middle" filters="{[shadow]}" width="100%" height="200" paddingBottom="4" paddingLeft="4" paddingRight="4" paddingTop="4">
+		<mx:Image source="@Embed('/icons/leaf32.png')" smoothBitmapContent="true"/>
+		<mx:Label text="{'Metie '+MetieVer.INFO}" styleName="{Styles.FONT_BROWN}"/>
+	</comp:GradientVBox>
+	
+	<comp:GradientVBox verticalGap="4" filters="{[shadow]}" width="100%" height="100%" paddingBottom="4" paddingLeft="4" paddingRight="4" paddingTop="4">
+		<mx:Label text="자주쓰는 태그" fontWeight="bold"/>
+		<mx:HBox width="100%" paddingBottom="4" paddingLeft="4" paddingRight="4" paddingTop="4">
+			<comp:NovTextInput id="tagInput" width="100%" creationComplete="tagInput_creationCompleteHandler(event)"/>
+			<mx:Button label="저장" click="tagsave_clickHandler()"/>
+		</mx:HBox>
+		<mx:Label text="다음에도 쉽게 사용할 수 있도록 항상유지됩니다." fontSize="10" color="#666666"/>
+		<mx:HBox width="100%" paddingBottom="4" paddingLeft="4" paddingRight="4" paddingTop="4">
+			<mx:Label text="윈도우 시작시 자동실행" fontWeight="bold"/>
+			<mx:CheckBox id="startCB" change="startCB_changeHandler(event)" selected="{NativeApplication.nativeApplication.startAtLogin}"/>
+		</mx:HBox>
+		<mx:HBox width="100%" paddingBottom="4" paddingLeft="4" paddingRight="4" paddingTop="4">
+		</mx:HBox>
+	</comp:GradientVBox>
+	
+	<mx:Label text="Metie by Teamsm" fontSize="10" fontWeight="bold"/>
+	<mx:HBox width="180">
+		<mx:LinkButton label="Sedurn" click="uid_clickHandler('sedurn')" textAlign="center"/>
+		<mx:LinkButton label="일심" click="uid_clickHandler('onemind')" textAlign="center"/>
+	</mx:HBox>
+	<mx:Label text="thanks" fontSize="10" fontWeight="bold"/>
+	<mx:Text styleName="tagText" link="todayText_linkHandler(event)" selectable="true" color="#666666" htmlText="{thanksText}" fontWeight="bold" width="100%" paddingLeft="10" paddingRight="10" paddingBottom="10"/>
+</mx:VBox>

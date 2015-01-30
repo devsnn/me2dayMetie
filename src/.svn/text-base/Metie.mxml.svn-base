@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:WindowedApplication preloader="assets.programmatic.CustomPreloader" creationComplete="create()" initialize="init()" horizontalScrollPolicy="off" verticalScrollPolicy="off" xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" width="400" minWidth="400" maxWidth="400" height="650" minHeight="220">
+	<mx:Style source="/css/skinPreview.css/"/>
+	<mx:Script>
+		<![CDATA[
+			import auth.AuthWindow;
+			import auth.MetieVerChecker;
+			
+			import com.lhd.MeConnect;
+			import com.lhd.events.MeConnectEvent;
+			
+			import flash.events.Event;
+			
+			import mx.events.AIREvent;
+			import mx.managers.PopUpManager;
+			
+			import tools.MainViewTool;
+			import mx.core.Application;
+			
+			import util.TrayManager;
+			import util.UserSetting;
+			import org.codehaus.stomp.event.MessageEvent;
+			import util.messageservice.Me2MessageService;
+			import util.AppSetting;
+			
+			
+			
+			private function init():void{
+				var so:SharedObject = SharedObject.getLocal("metie");
+				
+				if(so.data.user_id != null){
+					UserSetting.user_id = so.data.user_id;
+					UserSetting.full_auth_token = so.data.full_auth_token;
+					
+					// 인증키가 있으면 인증체크 
+					var connect:MeConnect = new MeConnect();
+					connect.addEventListener(MeConnectEvent.ON_FAULT, noop_faultHandler);
+					connect.addEventListener(MeConnectEvent.NOOP_RESULT, noop_resultHandler);
+					connect.noop();
+				} else{			
+					authWindowPopup();
+				}
+				this.addEventListener(Event.CLOSING, app_closingHandler);
+			}
+			
+			
+			
+			private function app_closingHandler(e:Event):void{
+				e.preventDefault();
+				
+				if(NativeApplication.supportsSystemTrayIcon){
+					stage.nativeWindow.visible = false;
+				}
+				else if(NativeApplication.supportsDockIcon){
+					stage.nativeWindow.visible = false;
+				}
+			}
+			
+			
+			
+			
+			private function authWindowPopup():void{
+				var authWindow:AuthWindow = new AuthWindow();
+				PopUpManager.addPopUp(authWindow, this, true);
+				authWindow.addEventListener(Event.COMPLETE, auth_completeHandler);
+				PopUpManager.centerPopUp(authWindow);
+			}
+			
+			private function noop_resultHandler(e:MeConnectEvent):void{
+				if(e.data.code == "0"){
+					var tray:TrayManager = new TrayManager();
+					tray.windowApp = this;
+					
+					view();
+					
+					Me2MessageService.auth(UserSetting.user_id, AppSetting.APP_KEY, UserSetting.full_auth_token);
+					//Me2MessageService.addEventListener(MessageEvent.MESSAGE,messageHandler);
+					
+				}
+				else{
+					authWindowPopup();
+				}
+			} 
+			
+			private function messageHandler(event:MessageEvent):void {
+				//trace(Me2MessageService.lastMessageBodyXML.toXMLString());
+			}
+			
+			
+			private function noop_faultHandler(e:MeConnectEvent):void{
+				authWindowPopup();
+			}
+			
+			
+			private function create():void{
+				var ver:MetieVerChecker = new MetieVerChecker();
+				ver.start();
+			}
+			
+			private function auth_completeHandler(e:Event):void{
+				PopUpManager.removePopUp(e.target as AuthWindow);
+				view();
+			}
+			
+			
+			private function view():void{
+				var mainTool:MainViewTool = new MainViewTool();
+				mainTool.percentHeight = 100;
+				mainTool.percentWidth = 100;
+				this.addChild(mainTool);
+			}
+			
+		]]>
+	</mx:Script>
+</mx:WindowedApplication>

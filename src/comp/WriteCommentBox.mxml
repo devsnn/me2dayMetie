@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:HBox creationComplete="create()" xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="50" horizontalAlign="center" verticalAlign="middle" paddingBottom="4" paddingLeft="4" paddingRight="4" paddingTop="4" xmlns:comp="comp.*">
+	<mx:Script>
+		<![CDATA[
+			import com.lhd.MeConnect;
+			import com.lhd.events.MeConnectEvent;
+			
+			import flash.events.Event;
+			import flash.events.KeyboardEvent;
+			import flash.events.MouseEvent;
+			
+			private var _post_id:String;
+
+			public function get post_id():String
+			{
+				return _post_id;
+			}
+
+			public function set post_id(value:String):void
+			{
+				_post_id = value;
+			}
+			
+			
+			private function create():void{
+				textArea.addEventListener(MouseEvent.CLICK, textArea_clickHandler);
+			}
+			
+			
+			public function destory():void{
+				textArea.removeEventListener(MouseEvent.CLICK, textArea_clickHandler);
+				connect.removeEventListener(MeConnectEvent.CREATECOMMENT_RESULT, result_createCommentHandler);
+				connect = null;
+			}
+			
+			private var connect:MeConnect = new MeConnect();
+			
+			private function createComment():void{
+				connect.addEventListener(MeConnectEvent.CREATECOMMENT_RESULT, result_createCommentHandler);
+				connect.createcomment(post_id, textArea.getTextField().text);
+			}
+			
+			
+			private function result_createCommentHandler(e:MeConnectEvent):void{
+				connect.removeEventListener(MeConnectEvent.CREATECOMMENT_RESULT, result_createCommentHandler);
+				this.dispatchEvent(new Event("write_complete"));
+				textArea.text = "";
+			}
+
+
+			protected function textArea_clickHandler(event:MouseEvent):void
+			{
+				setInit();
+			}
+			
+			
+			public function setInit():void{
+				textArea.removeEventListener(MouseEvent.CLICK, textArea_clickHandler);
+				textArea.text = ""; 
+			}
+
+
+			protected function textArea_keyDownHandler(event:KeyboardEvent):void
+			{
+				if(event.keyCode == 13){
+					createComment();
+				}
+			}
+
+		]]>
+	</mx:Script>
+	<comp:NovTextArea id="textArea" text="좌측의 닉네임을 클릭하면 입력폼에 포함됩니다." keyDown="textArea_keyDownHandler(event)" width="100%" height="40" paddingBottom="2" paddingLeft="2" paddingRight="2" paddingTop="2"/>
+	<mx:Button label="작성" click="createComment()" width="60" height="100%"/>
+</mx:HBox>

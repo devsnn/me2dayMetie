@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas creationComplete="{create()}" borderThickness="1" borderStyle="solid" borderColor="#000000" backgroundColor="#000000" rollOver="{itemOverHandler(event)}" rollOut="{itemOutHandler(event)}" horizontalScrollPolicy="off" verticalScrollPolicy="off" xmlns:mx="http://www.adobe.com/2006/mxml" width="200" height="150" buttonMode="true" xmlns:comp="comp.*">
+	<mx:Script>
+		<![CDATA[
+			[Bindable] public var imageSource:Bitmap;
+			[Bindable] public var text:String;
+			[Bindable] public var blendArr:Array = [];
+			
+			private var borderWidth:int = 0;
+			private var borderHeight:int = 0;
+			
+			private function create():void{
+				var itemWidth:int = this.width;
+				var itemHeight:int = this.height;
+				
+				var imgWidth:int = (imageSource as Bitmap).width; //400				300
+				var imgHeight:int = (imageSource as Bitmap).height; //300			400
+				
+				if(parentDocument is BlendFilterPopup){
+					var bitmap:Bitmap = (BlendFilterPopup(parentDocument).imageSource as Bitmap);
+					imgWidth = bitmap.width;
+					imgHeight = bitmap.height;
+				}
+				
+				var rate:Number = 0;
+				
+				if(itemWidth < itemHeight){
+					//아이템세로축
+					
+					if(imgWidth < imgHeight){
+						//이미지세로축
+						rate = imgHeight / itemHeight;
+						borderWidth = imgWidth / rate;
+						borderHeight = itemHeight;
+						
+					}else{
+						//이미지가로축
+						rate = imgWidth / itemWidth;
+						borderWidth = itemWidth;
+						borderHeight = imgHeight / rate;
+												
+					}				
+					 
+				}else{
+					//아이템가로축
+					if(imgWidth < imgHeight){
+						//이미지세로축
+						rate = imgHeight / itemHeight;
+						borderWidth = imgWidth / rate;
+						borderHeight = itemHeight;
+						
+					}else{
+						//이미지가로축
+						rate = imgWidth / itemWidth;
+						borderWidth = itemWidth;
+						borderHeight = imgHeight / rate;
+												
+					}
+				}
+				
+				
+				/* var sprite:Sprite = new Sprite();
+				sprite.graphics.beginFill(0xffffff, 0);
+				sprite.graphics.lineStyle(1, 0x000000);
+				sprite.graphics.drawRect(0, 0, borderWidth, borderHeight);
+				sprite.graphics.endFill();
+				sprite.name = "blackRect";
+				this.rawChildren.addChild(sprite); */
+				
+			}
+			
+			private function itemOverHandler(e:MouseEvent):void{
+				
+				
+				// 테두리를 그립니다. 
+				var sprite:Sprite = new Sprite();
+				sprite.graphics.beginFill(0xffffff, 0);
+				sprite.graphics.lineStyle(3, 0x00b4ff);
+				sprite.graphics.drawRect(0, 0, this.width, this.height);
+				sprite.graphics.endFill();
+				sprite.name = "borderRect";
+				this.rawChildren.addChild(sprite);
+
+			}
+			
+			private function itemOutHandler(e:MouseEvent):void{
+				
+				
+				
+				var borderRect:Sprite = this.rawChildren.getChildByName("borderRect") as Sprite;
+				if(borderRect){
+					this.rawChildren.removeChild(borderRect);
+				}
+				
+			}
+			
+			
+			
+		]]>
+	</mx:Script>
+	<mx:Image id="image" source="{imageSource}" width="100%" height="100%"/>
+	<comp:NovTextInput id="textInput" text="{text}" textAlign="center" borderColor="#333333" color="#ffffff" editable="false" backgroundColor="#000000" cornerRadius="8" borderThickness="1" borderStyle="solid" fontSize="11" fontWeight="bold" alpha="0.6" width="70" top="2" left="2" height="20" enabled="false" disabledColor="#FFFFFF" backgroundDisabledColor="#000000"/>
+</mx:Canvas>

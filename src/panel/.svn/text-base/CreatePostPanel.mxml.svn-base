@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" width="100%" height="100%">
+	<mx:Script>
+		<![CDATA[
+			import com.lhd.MeConnect;
+			import com.lhd.events.MeConnectEvent;
+			
+			import flash.events.Event;
+			import flash.events.MouseEvent;
+			
+			import header.DBConnecter;
+			
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import request.RequestCreatePost;
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				createPost();
+			}
+			
+			
+			private function createPost():void{
+				var connect:MeConnect = new MeConnect();
+				connect.addEventListener(MeConnectEvent.CREATEPOST_RESULT, result_createPostHandler);
+				connect.createpost(textArea.text, "testTag");
+			}
+			
+			
+			private function result_createPostHandler(e:MeConnectEvent):void{
+				this.dispatchEvent(new Event(Event.COMPLETE));
+			}
+			
+
+		]]>
+	</mx:Script>
+	<mx:TextArea id="textArea" x="10" y="10" width="215" height="73"/>
+	<mx:Button label="submit" click="button1_clickHandler(event)" x="160" y="91"/>
+</mx:TitleWindow>

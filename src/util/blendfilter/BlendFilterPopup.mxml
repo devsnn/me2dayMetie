@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow creationComplete="{create()}" title="필터효과" close="{popupClose()}" layout="absolute" horizontalScrollPolicy="off" verticalScrollPolicy="off" xmlns:mx="http://www.adobe.com/2006/mxml" width="700" height="200">
+	<mx:Metadata>
+		[Event(name="selectedFilter",type="hebron.tinicell.utils.blendfilter.BlendFilterPopupEvent")]
+	</mx:Metadata>
+	<mx:Script>
+		<![CDATA[
+			import flash.display.Bitmap;
+			
+			
+			import mx.events.FlexEvent;
+		
+			private var temp_original_image:Image;
+			private var _imageSource:Object;
+			private var _isCreate:Boolean = false;
+			
+			[Bindable] public var imageWidth:int;
+			[Bindable] public var imageHeight:int;
+			
+			[Bindable]
+			public function get imageSource():Object{
+				return _imageSource;
+			}
+			
+			public function set imageSource(obj:Object):void{
+				_imageSource = obj;
+				if(_isCreate){
+					blendThumbCreate();
+				}
+			}
+			
+			
+			private function create():void{
+				_isCreate = true;
+				
+				if(_imageSource){
+					blendThumbCreate();
+				}
+			}
+			
+			
+			private function updateCompleteHandler(e:FlexEvent):void{
+				img.removeEventListener(FlexEvent.UPDATE_COMPLETE, updateCompleteHandler);
+				blendThumbCreate();
+			}
+			
+			
+			private var blendImageItem:BlendImageItem;
+		
+			// 필터효과 썸네일을 배치함..
+			private function blendThumbCreate():void{				
+				tileBox.setFocus();
+				tileBox.removeAllChildren();
+				
+				var itemWidth:int = 200;//210;	400
+				var itemHeight:int = 150;//140;  300
+				
+				var imgWidth:int = (imageSource as Bitmap).width; //400				300
+				var imgHeight:int = (imageSource as Bitmap).height; //300			400
+				
+				//blendImageItem = BlendFilter.getInstance().getBlendImageItemFromFilterString("normal", img, itemWidth*2, itemHeight*2, itemWidth,itemHeight);
+				blendImageItem = BlendFilter.getInstance().getBlendImageItemFromFilterString("",img.source as Bitmap);
+				blendImageItem.addEventListener(MouseEvent.CLICK, getBlendImageSource);
+				tileBox.addChild(blendImageItem);
+				
+				//blendImageItem = BlendFilter.getInstance().getBlendImageItemFromFilterString("multiply+screen", img, itemWidth*2, itemHeight*2, itemWidth,itemHeight);
+				blendImageItem = BlendFilter.getInstance().getBlendImageItemFromFilterString("multiply+screen",img.source as Bitmap);
+				blendImageItem.addEventListener(MouseEvent.CLICK, getBlendImageSource);
+				tileBox.addChild(blendImageItem);
+				
+				//blendImageItem = BlendFilter.getInstance().getBlendImageItemFromFilterString("overlay+screen", img, itemWidth*2, itemHeight*2, itemWidth,itemHeight);
+				blendImageItem = BlendFilter.getInstance().getBlendImageItemFromFilterString("overlay+screen",img.source as Bitmap);
+				blendImageItem.addEventListener(MouseEvent.CLICK, getBlendImageSource);
+				tileBox.addChild(blendImageItem);
+				
+				//if(Config.levels != null && AuthManager.isServiceBasic() == true){
+					this.height = 370; // 관리자일때 효과가 늘어나므로 임시로 높이를 늘림..
+					
+					//blendImageItem= BlendFilter.getInstance().getBlendImageItemFromFilterString("fog|3|3+overlay", img, itemWidth*2, itemHeight*2, itemWidth,itemHeight);
+					blendImageItem = BlendFilter.getInstance().getBlendImageItemFromFilterString("fog|3|3+overlay",img.source as Bitmap);
+					blendImageItem.addEventListener(MouseEvent.CLICK, getBlendImageSource);
+					tileBox.addChild(blendImageItem);
+					
+					//blendImageItem = BlendFilter.getInstance().getBlendImageItemFromFilterString("overlay+darken", img, itemWidth*2, itemHeight*2, itemWidth,itemHeight);
+					blendImageItem = BlendFilter.getInstance().getBlendImageItemFromFilterString("overlay+darken",img.source as Bitmap);
+					blendImageItem.addEventListener(MouseEvent.CLICK, getBlendImageSource);
+					tileBox.addChild(blendImageItem);
+					
+					//blendImageItem = BlendFilter.getInstance().getBlendImageItemFromFilterString("normal+add", img, itemWidth*2, itemHeight*2, itemWidth,itemHeight);
+					blendImageItem = BlendFilter.getInstance().getBlendImageItemFromFilterString("normal+add",img.source as Bitmap);
+					blendImageItem.addEventListener(MouseEvent.CLICK, getBlendImageSource);
+					tileBox.addChild(blendImageItem);
+				//}
+				
+				
+			}
+			
+			
+			private function getBlendImageSource(e:Event):void{
+				/*
+				if(temp_original_image == null){
+					temp_original_image = new Image();
+					temp_original_image.source = new Bitmap((img.content as Bitmap).bitmapData,"auto", true);
+				}
+				*/
+				var blendItem:BlendImageItem = e.currentTarget as BlendImageItem;
+				//trace("blendArr:", blendItem.blendArr.toString());
+				//trace("filterString:", BlendFilterPaser.toFilterString(blendItem.blendArr));
+				
+				//var bitmap:Bitmap = BlendFilter.getInstance().getBlendBitmap((temp_original_image.source as Bitmap).bitmapData, blendItem.blendArr, img.width, img.height);
+				var filterString:String = BlendFilterPaser.toFilterString(blendItem.blendArr);
+				
+				//img.source = bitmap;
+				
+				
+				this.dispatchEvent(new BlendFilterPopupEvent(BlendFilterPopupEvent.SELECTED_FILTER, null, filterString));
+				popupClose();
+			}
+			
+			
+			private function popupClose():void{
+				
+				var n:int = tileBox.getChildren().length;
+				
+				for(var i:int=0; i < n; i++){
+					if(tileBox.getChildren()[i] is BlendImageItem){
+						var blendImageItem:BlendImageItem = tileBox.getChildren()[i] as BlendImageItem;
+						(blendImageItem.imageSource as Bitmap).bitmapData.dispose();
+					}
+				}
+				
+				//this.closePopUp();
+			}
+			
+			
+			
+		]]>
+	</mx:Script>
+	<mx:Image id="img" source="{imageSource}" visible="false" verticalAlign="middle" width="{imageWidth}" height="{imageHeight}" x="10" y="10"/>
+	<mx:Tile id="tileBox" horizontalScrollPolicy="off" verticalScrollPolicy="off" width="660" height="96%" horizontalGap="3" horizontalCenter="0" verticalCenter="0"/>
+</mx:TitleWindow>

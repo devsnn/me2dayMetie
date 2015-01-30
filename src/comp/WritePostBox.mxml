@@ -1,0 +1,405 @@
+<?xml version="1.0" encoding="utf-8"?>
+<comp:GradientHBox creationComplete="create()" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:comp="comp.*" width="100%" height="132" verticalScrollPolicy="off" borderStyle="solid" borderColor="#999999" filters="{[shadow]}" paddingBottom="4" paddingLeft="4" paddingRight="4" paddingTop="4">
+	<mx:Metadata>
+		[Event(name="write_complete",type="flash.events.Event")]
+	</mx:Metadata>
+	<mx:Script>
+		<![CDATA[
+			import com.lhd.MeConnect;
+			import com.lhd.events.MeConnectEvent;
+			
+			import flash.events.Event;
+			import flash.events.FocusEvent;
+			import flash.events.KeyboardEvent;
+			import flash.events.MouseEvent;
+			import flash.events.TimerEvent;
+			import flash.net.FileReference;
+			import flash.net.SharedObject;
+			import flash.utils.Timer;
+			
+			import mx.controls.Alert;
+			import mx.core.UIComponent;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			
+			import panel.LoadingPanel;
+			
+			import util.UserSetting;
+			
+			
+			[Bindable] private var text_count:String = "150";
+			private var isUpload:Boolean = false;
+			
+			private function create():void{
+				timer = new Timer(1000);
+				
+				var so:SharedObject = SharedObject.getLocal("metie");
+				if(so.data.tagText != null){
+					tagInput.text = so.data.tagText;
+				}		
+				
+				textArea.addEventListener(MouseEvent.CLICK, textArea_clickHandler);
+				textArea.addEventListener(KeyboardEvent.KEY_UP, textArea_keyUpHandler);
+				textArea.addEventListener(KeyboardEvent.KEY_DOWN, textArea_keyDownHandler);
+				textArea.addEventListener(FocusEvent.FOCUS_IN, textArea_focusInHandler);
+				textArea.addEventListener(FocusEvent.FOCUS_OUT, textArea_focusOutHandler);
+				timer.addEventListener(TimerEvent.TIMER, timer_focusHandler);
+			}
+			
+			
+			public function destory():void{
+				timer.removeEventListener(TimerEvent.TIMER, timer_focusHandler);
+				timer = null;
+				
+				if(textArea){
+					textArea.removeEventListener(MouseEvent.CLICK, textArea_clickHandler);
+					textArea.removeEventListener(KeyboardEvent.KEY_UP, textArea_keyUpHandler);
+					textArea.removeEventListener(KeyboardEvent.KEY_DOWN, textArea_keyDownHandler);
+					textArea.removeEventListener(FocusEvent.FOCUS_IN, textArea_focusInHandler);
+					textArea.removeEventListener(FocusEvent.FOCUS_OUT, textArea_focusOutHandler);
+				}
+				loadPanel = null;
+				if(imagePostView){
+					imagePostView.destory();
+					imagePostView = null;
+				}
+				fileR = null;
+				mePlayPosting = null;
+			}
+			
+			private var timer:Timer;
+			
+			private function textArea_focusInHandler(e:Event):void{
+				timer.start();
+			}
+			
+			
+			private function textArea_focusOutHandler(e:Event):void{
+				timer.stop();
+			}
+			
+			
+			private function timer_focusHandler(e:TimerEvent):void{
+				if(textArea.focusEnabled){
+					messageTextLengthCheck();
+				}
+			}
+			
+			private var isWriting:Boolean = false;
+			
+			private function createPost():void{
+				if(textArea.text.length > 0 && !isWriting){
+					writeBtn.enabled = false;
+					isWriting = true;
+					var connect:MeConnect = new MeConnect();
+					connect.addEventListener(MeConnectEvent.CREATEPOST_RESULT, result_createPostHandler);
+					connect.addEventListener(MeConnectEvent.ON_FAULT, falut_createPostHandler);
+					iconList.selectedIndex = iconList.verticalScrollPosition;
+					connect.createpost(textArea.getTextField().text, "metie " + tagInput.getTextField().text, iconList.selectedItem.iconIndex, 1, null, null, null, smsCB.selected, 0, 0, fileR);
+					
+					if(loadPanel == null){
+						loadPanel = new LoadingPanel();
+						loadPanel.textLabel = "글쓰는중..";
+					}
+					PopUpManager.addPopUp(loadPanel, this, true);
+					PopUpManager.centerPopUp(loadPanel);
+				}
+			}
+			
+			
+			private function falut_createPostHandler(e:MeConnectEvent):void{
+				if(loadPanel){
+					PopUpManager.removePopUp(loadPanel);
+					loadPanel = null;
+				}
+				
+				var connect:MeConnect = e.target as MeConnect;
+				connect.removeEventListener(MeConnectEvent.CREATEPOST_RESULT, falut_createPostHandler);
+				connect = null;
+				
+				Alert.show("잠시 후에 다시 시도해주세요.", "알림", 4, this);
+				
+				writeBtn.enabled = true;
+				isWriting = false;
+			}
+			
+			public var last_write_post_obj:Object;
+			
+			private function result_createPostHandler(e:MeConnectEvent):void{
+				if(loadPanel){
+					PopUpManager.removePopUp(loadPanel);
+					loadPanel = null;
+				}
+				
+				var connect:MeConnect = e.target as MeConnect;
+				connect.removeEventListener(MeConnectEvent.CREATEPOST_RESULT, result_createPostHandler);
+				last_write_post_obj = e.data;
+				
+				this.dispatchEvent(new Event("write_complete"));
+				
+				textArea.text = "";
+				
+				var so:SharedObject = SharedObject.getLocal("metie");
+				if(so.data.tagText){
+					tagInput.text = so.data.tagText;
+				}
+				else{
+					tagInput.text = "";
+				}
+				
+				writeBtn.enabled = true;
+				isWriting = false;
+			}
+			
+			
+			protected function textArea_clickHandler(event:MouseEvent):void
+			{
+				textArea.removeEventListener(MouseEvent.CLICK, textArea_clickHandler);
+				textArea.text = ""; 
+			}
+			
+			
+			protected function textArea_keyDownHandler(event:KeyboardEvent):void
+			{
+				if(event.keyCode == 13){
+					createPost();
+				}
+				messageTextLengthCheck();
+			}
+			
+			private function textArea_keyUpHandler(e:KeyboardEvent):void{
+				messageTextLengthCheck();
+			}
+			
+			
+			public function messageTextLengthCheck():void{
+				//var textCount:uint = getByteLength(textArea.text);
+				//text_count = textCount + " / 150"; 
+				text_count = (150 - textArea.text.length).toString();
+			}
+			
+			public static function getByteLength(str:String):uint{
+				var txtByte:Number = 0;
+				for(var i:int=0; i < str.length; i++){
+					var tmp:Number = str.charCodeAt(i);
+					if(tmp > 256){
+						txtByte += 2;
+					}
+					else{
+						txtByte++;
+					}
+				}
+				return txtByte;
+			}
+			
+
+			protected function tagInput_focusInHandler(event:FocusEvent):void
+			{
+				tagInput.selectionBeginIndex = tagInput.text.length;
+				tagInput.selectionEndIndex = tagInput.text.length;
+			}
+			
+			
+			// 링크걸기 
+			private function link_clickHandler():void{
+				if(textArea.text != "" && textArea.selectionBeginIndex != textArea.selectionEndIndex){
+					var linkPanel:TextLinkPanel = new TextLinkPanel();
+					PopUpManager.addPopUp(linkPanel, this, true);
+					PopUpManager.centerPopUp(linkPanel);
+					linkPanel.addEventListener(Event.COMPLETE, link_completeHandler);
+				}
+				else{
+					Alert.show("링크걸 문자열을 선택해주세요", "알림", 4, this);
+				}
+			}
+			
+			
+			private function link_completeHandler(e:Event):void{
+				var linkPanel:TextLinkPanel = e.target as TextLinkPanel;
+				
+				var first_text:String = textArea.text.substring(0, textArea.selectionBeginIndex);
+				var end_text:String = textArea.text.substr(textArea.selectionEndIndex, textArea.text.length);
+				
+				var link_text:String = textArea.text.substring(textArea.selectionBeginIndex, textArea.selectionEndIndex);
+				var ori_link_text_count:int = link_text.length;
+				
+				link_text = '"' + link_text + '":' + linkPanel.link_url+" ";
+				
+				//text_count = (int(text_count) - linkPanel.link_url.length+2).toString();
+				
+				textArea.text = first_text + link_text + end_text;
+				
+				PopUpManager.removePopUp(linkPanel);
+				
+			}
+			
+			
+			private var fileR:FileReference;
+			
+			private function upload_clickHandler():void{
+				if(fileR == null){
+					fileR = new FileReference();
+				}
+				
+				fileR.browse([new FileFilter("Images (*.jpg, *.jpeg)", "*.jpg;*.jpeg;")]);
+				fileR.addEventListener(Event.SELECT, file_selectHandler);
+			}
+			
+			private var preview:ImageFileRPreview;
+			
+			private function file_selectHandler(e:Event):void{
+				//Alert.show("사진이 첨부되었습니다. 글을 작성해주세요!'", "알림", 4, this);
+				//isUpload = true;
+				
+				
+				// 첨부된 사진 미리보기..
+				if(preview == null){
+					preview = new ImageFileRPreview();
+				}
+				preview.source = fileR;
+				preview.addEventListener("ok_click", preview_okHandler);
+				preview.addEventListener("clear_click", preview_clearHandler);
+				
+				PopUpManager.addPopUp(preview, this, true);
+				PopUpManager.centerPopUp(preview);
+			}
+			
+			private function preview_okHandler(e:Event):void{
+				preview.removeEventListener("ok_click", preview_okHandler);
+				preview.removeEventListener("clear_click", preview_clearHandler);
+				PopUpManager.removePopUp(preview);
+				preview.destory();
+				preview = null;
+				
+				Alert.show("사진이 첨부되었습니다. 글을 작성해주세요!'", "알림", 4, this);
+				isUpload = true;
+			} 
+			
+			
+			private function preview_clearHandler(e:Event):void{
+				preview.removeEventListener("ok_click", preview_okHandler);
+				preview.removeEventListener("clear_click", preview_clearHandler);
+				PopUpManager.removePopUp(preview);
+				preview.destory();
+				preview = null;
+				fileR = null;
+			}
+			
+			
+			
+			private var mePlayPosting:MePlayPostring;
+			
+			private function play_clickHandler():void{
+				Alert.show("나의 활동지수를 포스팅하시겠습니까?", "알림", Alert.OK+Alert.CANCEL, this, play_closeHandler);
+			}
+			
+			private var loadPanel:LoadingPanel;
+			
+			private function play_closeHandler(e:CloseEvent):void{
+				if(e.detail == Alert.OK){
+					loadPanel = new LoadingPanel();
+					loadPanel.textLabel = "데이터수집중..";
+					PopUpManager.addPopUp(loadPanel, this, true);
+					PopUpManager.centerPopUp(loadPanel);
+					
+					if(mePlayPosting == null){
+						mePlayPosting = new MePlayPostring();
+					}
+					mePlayPosting.addEventListener("play_complete", play_completeHandler);
+					mePlayPosting.start(UserSetting.user_id);
+				}
+			}
+			
+			
+			private function play_completeHandler(e:Event):void{
+				mePlayPosting.removeEventListener("play_complete", play_completeHandler);
+				writeBtn.enabled = false;
+				isWriting = true;
+				var connect:MeConnect = new MeConnect();
+				connect.addEventListener(MeConnectEvent.CREATEPOST_RESULT, result_createPostHandler);
+				connect.addEventListener(MeConnectEvent.ON_FAULT, falut_createPostHandler);
+				iconList.selectedIndex = iconList.verticalScrollPosition;
+				
+				// [활동지수] 나의 활동지수 평가! 나의 점수는 90점!! 
+				var postText:String = mePlayPosting.play_total_msg;
+				connect.createpost(postText, "metie 활동지수", iconList.selectedItem.iconIndex, 1, null, null, null, false, 0, 0, null);
+				
+				PopUpManager.removePopUp(loadPanel);
+				loadPanel = null;
+			}
+			
+			
+			// 사진효과 
+			private function blend_clickHandler():void{
+				if(fileR == null){
+					fileR = new FileReference();
+				}
+				
+				fileR.browse([new FileFilter("Images (*.jpg, *.jpeg)", "*.jpg;*.jpeg;")]);
+				fileR.addEventListener(Event.SELECT, blendfile_selectHandler);
+			}
+			
+			private function blendfile_selectHandler(e:Event):void{
+				fileR.removeEventListener(Event.SELECT, blendfile_selectHandler);
+				fileR.addEventListener(Event.COMPLETE, file_completeHandler);
+				fileR.load();
+				isUpload = true;
+			}
+			
+			
+			private var imagePostView:ImagePostView;
+			
+			private function file_completeHandler(e:Event):void{
+				fileR.removeEventListener(Event.COMPLETE, file_completeHandler);
+				
+				if(imagePostView == null){
+					imagePostView = new ImagePostView();
+				}
+				imagePostView.fileR = fileR;
+				imagePostView.addEventListener("blend_complete", blend_completeHandler);
+				imagePostView.addEventListener("img_complete", img_completeHandler);
+				
+				PopUpManager.addPopUp(imagePostView, this.parent as UIComponent, true);
+				PopUpManager.centerPopUp(imagePostView);
+			}
+			
+			private function img_completeHandler(e:Event):void{
+				imagePostView.removeEventListener("blend_complete", blend_completeHandler);
+				imagePostView.removeEventListener("img_complete", img_completeHandler);
+				imagePostView.removeAllChildren();
+				imagePostView = null;
+			}
+			
+			
+			private function blend_completeHandler(e:Event):void{
+				imagePostView.removeEventListener("blend_complete", blend_completeHandler);
+				imagePostView.removeEventListener("img_complete", img_completeHandler);
+				imagePostView.removeAllChildren();
+				imagePostView = null;
+				
+				Alert.show("바탕화면에 효과가 적용된 사진이 저장되었습니다.", "알림", 4, this);
+			}
+			
+			
+		]]>
+	</mx:Script>
+	<mx:DropShadowFilter id="shadow" distance="2" alpha="0.3" blurX="5" blurY="5" color="#666666" strength="1"/>
+	<mx:VBox width="100%" verticalGap="4" paddingBottom="2" paddingLeft="2" paddingRight="2" paddingTop="2">
+		<mx:HBox width="100%">
+			<comp:PersonIconTileList id="iconList" width="66" height="50"/>
+			<comp:NovTextArea id="textArea" text="지금 내 생각을 작성합니다." keyUp="textArea_keyUpHandler(event)" keyDown="textArea_keyDownHandler(event)" width="100%" height="64" paddingBottom="2" paddingLeft="2" paddingRight="2" paddingTop="2"/>
+		</mx:HBox>
+		<mx:HBox width="100%">
+			<comp:NovTextInput id="tagInput" focusIn="tagInput_focusInHandler(event)" width="100%" text="" keyDown="textArea_keyDownHandler(event)"/>
+			<mx:Label id="textCountLb" text="{text_count}" fontSize="13" fontWeight="bold" width="40" color="#cccccc"/>
+		</mx:HBox>	
+		<mx:HBox width="100%" horizontalGap="0">
+			<mx:CheckBox id="smsCB" label="문자받기" styleName="writeBoxText" fontWeight="bold" toolTip="내 글에 달리는 댓글을 문자메세지로 받습니다. 토큰이 소모됩니다.:)"/>
+			<mx:LinkButton label="링크걸기" width="55" click="link_clickHandler()" styleName="writeBoxText"/>
+			<mx:LinkButton label="필터효과" width="55" click="blend_clickHandler()" styleName="writeBoxText"/>
+			<mx:LinkButton label="사진첨부" width="55" click="upload_clickHandler()" styleName="writeBoxText"/>
+			<mx:LinkButton label="활동지수" width="55" click="play_clickHandler()" styleName="writeBoxText"/>
+		</mx:HBox>
+	</mx:VBox>
+	<mx:Button id="writeBtn" label="작성" click="createPost()" width="60" height="100%"/>
+</comp:GradientHBox>

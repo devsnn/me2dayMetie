@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas creationComplete="create()" horizontalScrollPolicy="off" xmlns:mx="http://www.adobe.com/2006/mxml" width="300" height="340" xmlns:comp="comp.*">
+	<mx:Script>
+		<![CDATA[
+			import com.lhd.MeConnect;
+			import com.lhd.events.MeConnectEvent;
+			
+			import comp.*;
+			
+			import flash.events.Event;
+			
+			import mx.collections.Sort;
+			import mx.collections.SortField;
+			import mx.collections.XMLListCollection;
+			
+			import util.UserSetting;
+			
+			
+			/* public static const ALL_POST:String = "allPost"; */
+			public static const FRIENDS_POST:String = "friendsPost";
+			public static const MY_POST:String = "myPost";
+			public static const BEST_POST:String = "bestPost";
+			public static const MENTIONED_POST:String = "mentionedPost";
+			public static const TOUSER_POST:String = "touserPost";
+			public static const STREAM_POST:String = "streamPost";
+			
+			[Bindable] private var resultXMLList:XMLList;
+			[Bindable] private var resultXMLCol:XMLListCollection;
+			
+			
+			[Bindable] private var person_user_id:String = UserSetting.user_id;
+			private var _post_type:String = "streamPost";
+			private var post_count:Number = 20;
+			
+			
+			public function get post_type():String
+			{
+				return _post_type;
+			}
+
+			public function set post_type(value:String):void
+			{
+				_post_type = value;
+				post_count = 15;
+				
+				if(value == MY_POST){
+					post_count = 10;
+				}
+				else if(value == TOUSER_POST){
+					post_count = 10;
+				}
+				
+				refresh();
+			}
+
+			private function create():void{
+				writePostBox.addEventListener(Event.COMPLETE, refresh);
+				this.addEventListener("user_click", user_clickHandler);
+				request();
+				
+				this.addEventListener(MouseEvent.MOUSE_WHEEL, mouseWheelHandler);
+				
+			}
+			
+			
+			private function mouseWheelHandler(e:MouseEvent):void{
+				if(e.delta.toString().indexOf("-") != -1){
+					this.verticalScrollPosition += 30;
+				}
+				else{
+					this.verticalScrollPosition -= 30;
+				}
+			}
+			
+			
+			public var to_user_id:String; // 설정에서 접근하기 위해 public 
+			
+			private function user_clickHandler(e:UserPostPageEvent):void{
+				to_user_id = e.user_id;
+				post_type = TOUSER_POST;
+				personBoxIsView = true;
+			}
+			
+			
+			public function refresh(e:Event=null):void{
+				request();
+			}
+			
+			
+			private function request():void{
+				
+				var connect:MeConnect = new MeConnect();
+				connect.addEventListener(MeConnectEvent.GETPOSTS_RESULT, result_postsHandler);
+				
+				person_user_id = UserSetting.user_id; // 기본값 
+				
+				if(post_type == FRIENDS_POST){
+					connect.getposts(MeConnect.POST_FRIENDS, post_count);
+				}
+				else if(post_type == MY_POST){
+					connect.getposts(MeConnect.POST_MY, post_count); 
+				}
+				else if(post_type == BEST_POST){
+					connect.getposts(MeConnect.POST_BEST, post_count);
+				}
+				else if(post_type == MENTIONED_POST){
+					connect.getposts(MeConnect.POST_MENTIONED, post_count);
+				}
+				else if(post_type == TOUSER_POST){
+					connect.getposts(MeConnect.POST_TOUSER, post_count, to_user_id); 
+					person_user_id = to_user_id;
+					personBoxIsView = true;
+					return;
+				}
+				else if(post_type == STREAM_POST){
+					connect.getposts(MeConnect.POST_STREAM, post_count);
+				}
+				
+				personBoxIsView = false;
+				
+			}
+			
+			private var my_posts:XMLList;
+			
+			private var old_post_type:String;
+			
+			private function result_postsHandler(e:MeConnectEvent):void{
+				my_posts = e.data.post;
+				
+				// 기존데이터에 합칠 데이터를 가져옴 
+				/* if(post_type == ALL_POST){
+					// 친구들 글을 가져옴 
+					var connect:MeConnect = new MeConnect();
+					connect.addEventListener(MeConnectEvent.GETPOSTS_RESULT, result_friendHandler);
+					connect.getposts(MeConnect.POST_FRIENDS, post_count);
+				}
+				else{
+					resultXMLCol = new XMLListCollection(my_posts);
+				} */
+				
+				resultXMLCol = new XMLListCollection(my_posts);
+				
+				if(loadingImg && loadingImg.visible == true){
+					loadingImg.visible = false;
+					this.removeChild(loadingImg);
+				}
+				
+				
+				// 새로운 메뉴면 스크롤을 최상단으로 이동합니다...
+				if(old_post_type != post_type){
+					this.verticalScrollPosition = 0;
+				}
+				old_post_type = post_type;
+				
+				
+			}
+			
+			
+			private function result_friendHandler(e:MeConnectEvent):void{
+				
+				var xmllist:XMLList = e.data.post + my_posts;
+				
+				var xmlCol:XMLListCollection = new XMLListCollection(xmllist);
+				var s:Sort = new Sort();
+				s.fields = [new SortField("pubDate", false, true)];
+				xmlCol.sort = s;
+				xmlCol.refresh();
+				
+				resultXMLCol = xmlCol;
+			}
+			
+			
+			
+			// 더보기 클릭..
+			private function more_clickHandler():void{
+				post_count += 10;
+				refresh();
+			}
+			
+			
+			private function set personBoxIsView(bool:Boolean):void{
+				if(personBox){
+					if(bool){
+						personBox.visible = true;
+						personBox.user_id = person_user_id;
+						personBox.height = 100;
+						
+						writePostBox.visible = false;
+						writePostBox.height = 0;
+					}
+					else{
+						personBox.visible = false;
+						personBox.height = 0;
+						
+						writePostBox.height = 132;
+						writePostBox.visible = true;
+					}
+				}
+			}
+			
+			
+		]]>
+	</mx:Script>
+	<mx:Image id="loadingImg" smoothBitmapContent="true" source="@Embed('/assets/icons/loading.swf')" width="25" height="25" horizontalCenter="0" verticalCenter="0"/>
+	<mx:DropShadowFilter id="shadow" distance="2" alpha="0.3" blurX="5" blurY="5" color="#666666" strength="1"/>
+	
+	<comp:DateBox x="0" y="0" width="100%" height="45"/>
+	<mx:VBox id="vbox" left="5" right="25" top="50">
+		<comp:WritePostBox id="writePostBox" width="100%"/>
+		<comp:PersonBox id="personBox" visible="false" height="0"/>
+		<mx:Repeater id="rp" dataProvider="{resultXMLCol}">
+			<comp:TodayTileListItemRenderer post="{new Post(rp.currentItem)}"/>
+		</mx:Repeater>
+		<mx:Button label="더보기" width="100%" height="30" click="more_clickHandler()"/>
+	</mx:VBox>
+</mx:Canvas>

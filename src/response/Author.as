@@ -1,0 +1,24 @@
+package response
+{
+	public class Author
+	{
+		
+		public var id:String;
+		public var nickname:String;
+		public var face:String;
+		public var me2dayHome:String;
+		public var homepage:String = '';
+		
+		public function Author(item:Object)
+		{
+			id = item.id;
+			nickname = item.nickname;
+			face = item.face;
+			me2dayHome = item.me2dayHome;
+			
+			if(item.homepage){
+				homepage = item.homepage;
+			}
+		}
+	}
+}

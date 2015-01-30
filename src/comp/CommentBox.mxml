@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox creationComplete="vbox1_creationCompleteHandler(event)" xmlns:mx="http://www.adobe.com/2006/mxml" verticalGap="0" width="100%" height="100%" xmlns:comp="comp.*">
+	<mx:Script>
+		<![CDATA[
+			import com.lhd.MeConnect;
+			import com.lhd.events.MeConnectEvent;
+			
+			import flash.events.Event;
+			
+			import mx.events.FlexEvent;
+			
+			private var comments:XMLList;
+			
+			private var _post_id:String;
+
+			public function get post_id():String
+			{
+				return _post_id;
+			}
+
+			public function set post_id(value:String):void
+			{
+				_post_id = value;
+				requestPost();
+			}
+			
+			
+			public function destory():void{
+				if(connect){
+					connect.removeEventListener(MeConnectEvent.GETCOMMENTS_RESULT, result_getCommnetsHandler);
+					connect = null;
+				}
+				if(writeCommentBox){
+					writeCommentBox.removeEventListener(Event.COMPLETE, result_completeHandler);
+					writeCommentBox.destory();
+					writeCommentBox = null;
+				}
+				this.removeAllChildren();
+			}
+			
+			private var connect:MeConnect;
+			
+			private function requestPost():void{
+				if(post_id){
+					
+					if(connect == null){
+						connect = new MeConnect();
+					}
+					connect.addEventListener(MeConnectEvent.GETCOMMENTS_RESULT, result_getCommnetsHandler);
+					connect.getcomments(post_id);
+				}
+			}
+			
+			
+			private function result_getCommnetsHandler(e:MeConnectEvent):void{
+				connect.removeEventListener(MeConnectEvent.GETCOMMENTS_RESULT, result_getCommnetsHandler);
+				comments = e.data.comment as XMLList;
+				//rp.dataProvider = comments;
+				
+				if(writeCommentBox == null){
+					writeCommentBox = new WriteCommentBox();
+					writeCommentBox.percentWidth = 100;
+					writeCommentBox.addEventListener("write_complete", result_completeHandler);
+				}
+				
+				writeCommentBox.visible = true;
+				writeCommentBox.height = 50;
+				writeCommentBox.post_id = post_id;
+				
+				createItem();
+				
+				this.addChild(writeCommentBox);
+				
+			}
+
+
+			protected function vbox1_creationCompleteHandler(event:FlexEvent):void
+			{
+				this.addEventListener("nickname_click", nickname_clickHandler, false, 0, true);
+			}
+			
+			private function result_completeHandler(e:Event):void{
+				writeCommentBox.removeEventListener("write_complete", result_completeHandler);
+				destory();
+				requestPost();
+			}
+
+
+			protected function nickname_clickHandler(e:Event):void
+			{
+				if(e.target is CommentBoxItemRenderer){
+					if(writeCommentBox.textArea.getTextField().text == "좌측의 닉네임을 클릭하면 입력폼에 포함됩니다."){
+						writeCommentBox.textArea.getTextField().text = "";
+					}
+					
+					writeCommentBox.setInit();
+					var write_text:String = "/"+(e.target as CommentBoxItemRenderer).write_id + "/ ";
+					writeCommentBox.textArea.text = writeCommentBox.textArea.getTextField().text + write_text;
+					writeCommentBox.textArea.setFocus();
+					writeCommentBox.textArea.selectionBeginIndex = writeCommentBox.textArea.text.length;
+					writeCommentBox.textArea.selectionEndIndex = writeCommentBox.textArea.text.length;
+				}
+			}
+			
+			private var writeCommentBox:WriteCommentBox;
+			
+			private function createItem():void{
+				var itemR:CommentBoxItemRenderer;
+				for(var i:int=0; i<comments.length(); i++){
+					itemR = new CommentBoxItemRenderer();
+					itemR.itemObj = comments[i];
+					this.addChild(itemR);
+				}
+				
+				
+			}
+
+		]]>
+	</mx:Script>
+	<!--<mx:Repeater id="rp" recycleChildren="false">
+		<comp:CommentBoxItemRenderer nickname_click="nickname_clickHandler(event)" itemObj="{rp.currentItem}"/>
+	</mx:Repeater>-->
+	<!--<comp:WriteCommentBox id="writeCommentBox" width="100%" visible="false" height="0"/>-->
+</mx:VBox>

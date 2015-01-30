@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow title="크게보기" layout="absolute" width="100%" height="100%" showCloseButton="true" close="{PopUpManager.removePopUp(this)}" xmlns:mx="http://www.adobe.com/2006/mxml" backgroundColor="#3f3f3f">
+	<mx:Script>
+		<![CDATA[
+			import flash.events.Event;
+			import flash.net.FileReference;
+			
+			import mx.managers.PopUpManager;
+			
+			
+			public var fileR:FileReference;
+			
+			
+			public function destory():void{
+				img = null;
+				this.removeAllChildren();
+			}
+			
+			public function set source(_fileR:FileReference):void{
+				fileR = _fileR;
+				fileR.addEventListener(Event.COMPLETE, fileload_completeHandler);
+				fileR.load();
+			}
+			
+			
+			private function fileload_completeHandler(e:Event):void{
+				fileR.removeEventListener(Event.COMPLETE, fileload_completeHandler);
+				img.source = fileR.data;
+			}
+			
+			
+			private function complete_imageHandler():void{
+				loadingImg.visible = false;
+			}
+			
+			
+			private function img_clickHandler():void{
+				this.dispatchEvent(new Event("ok_click"));
+				PopUpManager.removePopUp(this);
+			}
+			
+			private function clear_clickHandler():void{
+				this.dispatchEvent(new Event("clear_click"));
+				PopUpManager.removePopUp(this);
+			}
+			
+		]]>
+	</mx:Script>
+	<mx:Image id="loadingImg" smoothBitmapContent="true" source="@Embed('/assets/icons/loading.swf')" width="25" height="25" horizontalCenter="0" verticalCenter="0"/>
+	<mx:VBox width="100%" height="100%" horizontalAlign="center" verticalAlign="middle" paddingBottom="4" paddingLeft="4" paddingRight="4" paddingTop="4">
+		<mx:Image id="img" click="img_clickHandler()" buttonMode="true" complete="complete_imageHandler()" smoothBitmapContent="true" width="300" height="300" horizontalAlign="center" verticalAlign="middle"/>
+		<mx:HBox width="100%" horizontalGap="2" horizontalAlign="center">
+			<mx:LinkButton label="첨부하기" click="img_clickHandler()"/>
+			<mx:LinkButton label="지우기" click="clear_clickHandler()"/>
+		</mx:HBox>
+	</mx:VBox>
+	
+</mx:TitleWindow>

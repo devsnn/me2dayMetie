@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<alertwindow:MetieWindow filters="{[shadow]}" showFlexChrome="false" verticalScrollPolicy="off" horizontalScrollPolicy="off" creationComplete="create()" xmlns:mx="http://www.adobe.com/2006/mxml" width="300" height="100" xmlns:alertwindow="comp.alertwindow.*" xmlns:comp="comp.*">
+	<mx:Metadata>
+		[Event(name="alert_close",type="flash.events.Event")]
+	</mx:Metadata>
+	<mx:Script>
+		<![CDATA[
+			import flash.events.Event;
+			import flash.utils.Timer;
+			
+			import mx.events.FlexEvent;
+			
+			import response.Comment;
+			import response.Post;
+			
+			private var _comment:Comment;
+			private var _post:Post;
+			
+			private var simpleAlert:SimpleAlertWindow = new SimpleAlertWindow();
+			
+			public function get post():Post
+			{
+				return _post;
+			}
+
+			public function set post(value:Post):void
+			{
+				_post = value;
+				if(simpleAlert){
+					simpleAlert.post = value;
+				}
+			}
+
+			public function get comment():Comment
+			{
+				return _comment;
+			}
+
+			public function set comment(value:Comment):void
+			{
+				_comment = value;
+				if(simpleAlert){
+					simpleAlert.comment = value;
+				}
+			}
+			
+			
+			public function message(_nickname:String, _face_url:String, _bodyText:String, _tagText:String=null):void{
+				if(simpleAlert){
+					simpleAlert.message(_nickname, _face_url, _bodyText, _tagText);
+				}
+			}
+			
+			
+			private function init():void{
+				simpleAlert.percentHeight = 100;
+				simpleAlert.percentWidth = 100;
+			}
+			
+			
+			public function addSimpleAlert():void{
+				addChild(simpleAlert);
+			}
+			
+			private var timer:Timer;
+			
+			private function create():void{
+				//stage.addChild(itemR);
+				timer = new Timer(6000, 1);
+				timer.addEventListener(TimerEvent.TIMER, close_timerHandler);
+				timer.start();
+			}
+			
+			
+			public function destory():void{
+				post = null;
+				comment = null;
+				
+				this.removeChild(simpleAlert);
+				simpleAlert.destory();
+				simpleAlert = null;
+				this.removeAllChildren();
+			}
+			
+			
+			
+			private function close_timerHandler(e:TimerEvent):void{
+				timer.removeEventListener(TimerEvent.TIMER, close_timerHandler);
+				timer = null;
+				
+				this.dispatchEvent(new Event("alert_close"));
+				
+			}
+
+		]]>
+	</mx:Script>
+	<mx:DropShadowFilter id="shadow" distance="2" alpha="0.4" blurX="5" blurY="5" color="#666666" strength="1"/>
+</alertwindow:MetieWindow>

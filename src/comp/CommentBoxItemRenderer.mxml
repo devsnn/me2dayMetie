@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:HBox initialize="init()" creationComplete="create()" xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" horizontalGap="2">
+	<mx:Metadata>
+		[Event(name="nickname_click",type="flash.events.Event")]
+	</mx:Metadata>
+	<mx:Script>
+		<![CDATA[
+			import flash.events.Event;
+			import flash.events.TextEvent;
+			
+			import header.PostRequester;
+			
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			
+			import response.Comment;
+			import response.Post;
+			
+			import util.MetieUtil;
+			import util.Styles;
+			
+			private var _comment_item:Comment;
+			private var _itemObj:Object;
+			
+			private var nickname:String;
+			private var body:String;
+			
+			private var _isCreate:Boolean = false;
+			
+			public function get itemObj():Object
+			{
+				return _itemObj;
+			}
+
+			public function set itemObj(value:Object):void
+			{
+				_itemObj = value;
+				if(comment_item){
+					comment_item = null;
+				}
+				comment_item = new Comment(value);
+			}
+
+			public function get write_id():String{
+				return comment_item.author.id;
+			}
+			
+			public function get comment_item():Comment
+			{
+				return _comment_item;
+			}
+			
+
+			public function set comment_item(value:Comment):void
+			{
+				_comment_item = value;
+				nickname = value.author.nickname;
+				
+				body = MetieUtil.ahrefLinkReplace(value.body)+" <font size='9' color='#5c5154'>"+MetieUtil.getDateAgo(value.pubDate)+"</font>";
+				
+				if(_isCreate){
+					nickLb.label = nickname;
+					commentText.htmlText = body;
+				}
+			}
+			
+			
+			private function init():void{
+				//createTime = new Date().getTime();
+			}
+			
+			private function create():void{
+				commentText.addEventListener(TextEvent.LINK, text_linkHandler);
+				
+				nickLb.label = nickname;
+				commentText.htmlText = body;
+				
+				_isCreate = true;
+			}
+			
+			
+			public function destory():void{
+				commentText.removeEventListener(TextEvent.LINK, text_linkHandler);
+			}
+			
+			private var link_text:String;
+			private var permalink:String;
+			private var postReq:PostRequester;
+			
+			private function text_linkHandler(e:TextEvent):void{
+				link_text = e.text;
+				
+				if(e.text.indexOf("http://me2day.net/") != -1 && e.text.indexOf("#") == -1){
+					var uid:String = e.text.substring(e.text.lastIndexOf("/")+1, e.text.length);
+					this.dispatchEvent(new UserPostPageEvent("user_click", uid, true));
+				}
+				else if(e.text.indexOf("http://me2day.net/") != -1 && e.text.indexOf("#") != -1){
+					// permalink..
+					if(last_post){
+						if(this.parentDocument.parentDocument is TodayTileListItemRenderer){
+							if(this.parentDocument.parentDocument.parentDocument is TodayTileListItemRenderer){
+								(this.parentDocument.parentDocument.parentDocument as TodayTileListItemRenderer).closeOriginPost(last_post);
+							}
+							else{
+								(this.parentDocument.parentDocument as TodayTileListItemRenderer).closeOriginPost(last_post);
+							}
+						}
+						last_post = null;
+					}
+					else{
+						permalink = e.text;
+						postReq = null;
+						postReq = new PostRequester(null, null, permalink);
+						postReq.addEventListener(Event.COMPLETE, post_completeHandler);
+					}
+					
+				}
+				else{
+					Alert.show("브라우져에서 열겠습니까?", "알림", Alert.OK+Alert.CANCEL, this, close_linkHandler);
+				}
+			}
+			
+			private function close_linkHandler(e:CloseEvent):void{
+				if(Alert.OK == e.detail){
+					navigateToURL(new URLRequest(link_text), "_blank");
+				}
+			}
+			
+			
+			private var last_post:Post;
+			
+			private function post_completeHandler(e:Event):void{
+				postReq.removeEventListener(Event.COMPLETE, post_completeHandler);
+				var isFind:Boolean = false;
+				
+				for(var i:int=0; i<postReq.resultXMLList.length(); i++){
+					if(permalink == postReq.resultXMLList[i].permalink){
+						isFind = true;
+						last_post = new Post(postReq.resultXMLList[i]);
+
+						if(this.parentDocument.parentDocument is TodayTileListItemRenderer){
+							if(this.parentDocument.parentDocument.parentDocument is TodayTileListItemRenderer){
+								(this.parentDocument.parentDocument.parentDocument as TodayTileListItemRenderer).openOriginPost(last_post);
+							}
+							else{
+								(this.parentDocument.parentDocument as TodayTileListItemRenderer).openOriginPost(last_post);
+							}
+						}
+						
+						return;
+					}
+				}
+				
+				Alert.show("원본 글을 찾을 수 없습니다.", "알림", 4, this);
+			}
+
+		]]>
+	</mx:Script>
+	<mx:LinkButton id="nickLb" styleName="{Styles.FONT_SKY}" click="{dispatchEvent(new Event('nickname_click', true))}"/>
+	<mx:Text id="commentText" width="100%" paddingLeft="2" paddingRight="2" paddingTop="2" paddingBottom="2" selectable="true"/>
+</mx:HBox>

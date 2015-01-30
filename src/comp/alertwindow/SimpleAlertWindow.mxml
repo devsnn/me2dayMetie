@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<comp:GradientCanvas creationComplete="create()" horizontalScrollPolicy="off" verticalScrollPolicy="off" filters="{[shadow]}" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:comp="comp.*" width="97%" height="97%" paddingBottom="8" paddingLeft="8" paddingRight="8" paddingTop="8">
+	<mx:Script>
+		<![CDATA[
+			import mx.core.UIComponent;
+			
+			import response.Comment;
+			import response.Post;
+			import comp.SpriteWithBitmap;
+			
+			public static const POST_TYPE:String = "postType";
+			public static const COMMENT_TYPE:String = "commentType";
+			public static const MESSAGE_TYPE:String = "messageType";
+			public static const WINDOW_TYPE:String = "windowType";
+			
+			private var nickname:String;
+			private var body:String;
+			private var tag:String;
+			private var face_url:String;
+			
+			private var _post:Post;
+			private var _comment:Comment;
+			
+			public function get comment():Comment
+			{
+				return _comment;
+			}
+
+			public function set comment(value:Comment):void
+			{
+				if(value){
+					_comment = value;
+					nickname = comment.author.nickname;
+					face_url = comment.author.face;
+					body = comment.body;
+				}
+			}
+
+			public function get post():Post{
+				return _post;
+			}
+			
+			public function set post(__post:Post):void{
+				if(__post){
+					_post = __post;
+					nickname = post.author.nickname;
+					face_url = post.author.face;
+					body = post.body;
+					tag = post.tagText;
+					
+				}
+			}
+			
+			
+			private function create():void{
+				createSimpleFaceImage();
+				
+				nickLb.text = nickname;
+				bodyText.htmlText = body;
+				tagText.htmlText = tag;
+			}
+			
+			public function destory():void{
+				post = null;
+				comment = null;
+				
+				if(face){
+					face.destory();
+					face = null;
+				}
+				if(faceUI){
+					faceUI = null;
+				}
+				this.removeAllChildren();
+			}
+			
+			public function message(_nickname:String, _face_url:String, _bodyText:String, _tagText:String=null):void{
+				nickname = _nickname;
+				body = _bodyText;
+				tag = _tagText;
+				face_url = _face_url;
+			}
+			
+			
+			private var face:SpriteWithBitmap;
+			private var faceUI:UIComponent;
+			
+			private function createSimpleFaceImage():void{
+				face = new SpriteWithBitmap(face_url);
+				face.buttonMode = true;
+				
+				faceUI = new UIComponent();
+				faceUI.addChild(face);
+				vbox.addChild(faceUI);
+				
+				faceUI.width = 60;
+				faceUI.height = 60;
+				face.filters = [imgShadow];
+			}
+			
+			
+
+		]]>
+	</mx:Script>
+	<mx:DropShadowFilter id="shadow" distance="4" alpha="0.4" blurX="5" blurY="5" color="#333333" strength="1"/>
+	<mx:DropShadowFilter id="imgShadow" distance="2" alpha="0.4" blurX="5" blurY="5" color="#666666" strength="1"/>
+	
+	<mx:VBox id="vbox" width="70" x="2" y="2" height="100%" verticalGap="4" horizontalAlign="center" paddingBottom="2" paddingLeft="2" paddingRight="2" paddingTop="4"/>
+	<mx:Canvas x="8" y="46" horizontalScrollPolicy="off" verticalScrollPolicy="off" width="60" backgroundAlpha="0.4" backgroundColor="#000000" color="#ffffff">
+		<mx:Label id="nickLb" styleName="todayText" letterSpacing="-1" fontSize="10" fontWeight="bold" horizontalCenter="0" verticalCenter="0" width="68" textAlign="center"/>
+	</mx:Canvas>
+	<mx:VBox x="80" y="2" width="100%" height="100%" verticalGap="2">
+		<mx:Text id="bodyText" styleName="todayText" fontWeight="bold" width="100%" height="44" paddingTop="8" paddingRight="8"/>
+		<mx:Text id="tagText" styleName="tagText" fontWeight="bold" width="100%" height="30" paddingRight="8"/>
+	</mx:VBox>
+</comp:GradientCanvas>

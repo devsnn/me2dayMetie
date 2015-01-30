@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%" paddingBottom="8" paddingLeft="8" paddingRight="8" paddingTop="8">
+	<mx:Script>
+		<![CDATA[
+			import flash.events.Event;
+			import flash.events.TextEvent;
+			
+			import header.PostRequester;
+			
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			
+			import response.Post;
+			
+			import util.MetieUtil;
+			
+			private var last_post:Post;
+			
+			[Bindable] private var post_title:String;
+			
+			private var _post:Post;
+			
+			public function get post():Post
+			{
+				return _post;
+			}
+
+			public function set post(value:Post):void
+			{
+				_post = value;
+				var text:String = "<a href='post_id:"+value.post_id+":post_id'>"+value.body+ "</a>" + " by <a href='" + value.author.me2dayHome+"'>"+value.author.nickname+"</a> ["+value.commentIndex+"/"+value.commentsCount+"]";
+					
+				post_title = MetieUtil.ahrefLinkReplace(text);
+			}
+			
+			
+			
+			private var link_text:String;
+			
+			private function todayText_linkHandler(e:TextEvent):void{
+				link_text = e.text;
+				
+				if(e.text.indexOf("http://me2day.net/") != -1 && e.text.indexOf("#") == -1){
+					var uid:String = e.text.substring(e.text.lastIndexOf("/")+1, e.text.length);
+					this.dispatchEvent(new UserPostPageEvent("user_click", uid, true));
+				}
+				else if(e.text.indexOf("post_id:") != -1){
+					if(last_post != null){
+						if(this.parentDocument is TodayTileListItemRenderer){
+							if(this.parentDocument.parentDocument is TodayTileListItemRenderer){
+								(this.parentDocument.parentDocument as TodayTileListItemRenderer).closeOriginPost(last_post);
+							}
+							else{
+								(this.parentDocument as TodayTileListItemRenderer).closeOriginPost(last_post);
+							}
+						}
+						last_post = null;
+					}
+					else{
+						var post_id:String = MetieUtil.getPostid(e.text);
+						var postReq:PostRequester = new PostRequester(post_id);
+						postReq.addEventListener(Event.COMPLETE, post_completeHandler);
+					}
+				}
+				else{
+					Alert.show("브라우져에서 열겠습니까?", "알림", Alert.OK+Alert.CANCEL, this, close_linkHandler);
+				}
+			}
+			
+			
+			private function close_linkHandler(e:CloseEvent):void{
+				if(Alert.OK == e.detail){
+					navigateToURL(new URLRequest(link_text), "_blank");
+				}
+			}
+			
+			
+			private function post_completeHandler(e:Event):void{
+				var postReq:PostRequester = e.target as PostRequester;
+				last_post = new Post(postReq.resultXMLList[0]);
+				
+				if(this.parentDocument is TodayTileListItemRenderer){
+					if(this.parentDocument.parentDocument is TodayTileListItemRenderer){
+						(this.parentDocument.parentDocument as TodayTileListItemRenderer).openOriginPost(last_post);
+					}
+					else{
+						(this.parentDocument as TodayTileListItemRenderer).openOriginPost(last_post);
+					}
+				}
+			}
+			
+			
+
+		]]>
+	</mx:Script>
+	<mx:Text width="100%" htmlText="{post_title}" link="todayText_linkHandler(event)" selectable="true" styleName="tagText" fontWeight="bold"/>
+</mx:VBox>

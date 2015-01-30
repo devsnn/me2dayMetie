@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:HBox filters="{[sha]}" creationComplete="create()" fontSize="12" horizontalGap="2" horizontalAlign="center" verticalAlign="middle" cornerRadius="0" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:comp="comp.*" width="400" height="300">
+	<mx:Metadata>
+		[Event(name="myfriends_click",type="flash.events.Event")]
+		[Event(name="my_click",type="flash.events.Event")]
+		[Event(name="mentioned_click",type="flash.events.Event")]
+		[Event(name="best_click",type="flash.events.Event")]
+		[Event(name="credit_click",type="flash.events.Event")]
+		[Event(name="stream_click",type="flash.events.Event")]
+		[Event(name="refresh_click",type="flash.events.Event")]
+		[Event(name="comment_click",type="flash.events.Event")]
+	</mx:Metadata>
+	<mx:Script>
+		<![CDATA[
+			import flash.events.Event;
+			
+			import mx.events.ItemClickEvent;
+			
+			[Bindable]  private var menuArr:Array = ['모아보기', '나는', '소환받은', '설정'];
+			
+			private function create():void{
+				graphics.beginFill(0x2f2f2f);
+				graphics.drawRect(0, 0, width, height);
+				graphics.endFill();
+				
+				//linkBar.selectedIndex = 0;
+				
+				/* disabled-color:			#333333;
+				text-roll-over-color: 	#000000;
+				text-selected-color: 	#000000;
+				theme-color: #3577BB; */
+			}
+			
+			
+			private function link_itemClickHandler(event:ItemClickEvent):void{
+				linkBar.dataProvider = menuArr;
+				//linkBar.selectedIndex = event.index;
+				
+				itemSelect(event.index);
+			}
+			
+			
+			private function itemSelect(index:int):void{
+				switch(index){
+					case 0:
+						dispatchEvent(new Event('stream_click'));
+						break;
+					case 1:
+						dispatchEvent(new Event('my_click')); // 나는 
+						//dispatchEvent(new Event('myfriends_click')); // 친구와나 
+						break;
+					case 2:
+						dispatchEvent(new Event('mentioned_click')); // 소환받은 
+						//dispatchEvent(new Event('best_click')); // 관심친구 
+						break;
+					case 3:
+						dispatchEvent(new Event('credit_click')); // 설정 
+						//dispatchEvent(new Event('comment_click')); // 설정 
+						break;
+					case 4:
+						
+						//dispatchEvent(new Event('mentioned_click')); // 소환받은 
+						break;
+					case 5:
+						//dispatchEvent(new Event('credit_click')); // 설정 
+						break;
+				}
+			}
+			
+			
+			private function refesh_clickHandler():void{
+				dispatchEvent(new Event('refresh_click'));
+			}
+		]]>
+	</mx:Script>
+	<mx:DropShadowFilter id="sha" alpha="0.6" angle="90" color="#212121" blurX="7" blurY="7" distance="7" inner="true" />
+	<mx:LinkButton click="refesh_clickHandler()" icon="@Embed('assets/icons/ref4.png')" selected="false" rollOverColor="#000000" selectionColor="#333333" toolTip="새로고침"/>
+	<mx:LinkBar id="linkBar" itemClick="link_itemClickHandler(event)" dataProvider="{menuArr}"/>
+</mx:HBox>

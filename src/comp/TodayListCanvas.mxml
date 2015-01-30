@@ -1,0 +1,587 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas initialize="init()" creationComplete="create()" horizontalScrollPolicy="off" xmlns:mx="http://www.adobe.com/2006/mxml" width="300" height="340" xmlns:comp="comp.*" xmlns:alertwindow="comp.alertwindow.*">
+	<mx:Script>
+		<![CDATA[
+			import com.lhd.MeConnect;
+			import com.lhd.events.MeConnectEvent;
+			
+			import comp.*;
+			import comp.alertwindow.*;
+			
+			import flash.events.Event;
+			import flash.events.TimerEvent;
+			import flash.net.URLRequest;
+			import flash.net.navigateToURL;
+			import flash.utils.Timer;
+			
+			import mx.collections.Sort;
+			import mx.collections.SortField;
+			import mx.collections.XMLListCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.events.FlexEvent;
+			import mx.managers.PopUpManager;
+			import mx.utils.ObjectUtil;
+			
+			import panel.LoadingPanel;
+			
+			import util.UserSetting;
+			
+			
+			/* public static const ALL_POST:String = "allPost"; */
+			public static const FRIENDS_POST:String = "friendsPost";
+			public static const BEST_POST:String = "bestPost";
+			public static const MENTIONED_POST:String = "mentionedPost";
+			public static const TOUSER_POST:String = "touserPost";
+			public static const STREAM_POST:String = "streamPost";
+			public static const COMMENT_POST:String = "commentPost";
+			
+			// 빠른 메뉴전환을 위해 XMLList 를 가지고 있습니다.
+			private var streamPosts:XMLListCollection;
+			private var touserPosts:XMLList;
+			private var mentionedPosts:XMLList;
+			private var commentPosts:XMLList;
+			
+			
+			[Bindable] private var person_user_id:String = UserSetting.user_id;
+			
+			private var _post_type:String = "streamPost";
+			private var post_count:Number = 20;
+			private var offset:Number = 0;
+			
+			private var _isCreate:Boolean = false;
+			
+			
+			public function get post_type():String
+			{
+				return _post_type;
+			}
+
+			public function set post_type(value:String):void
+			{
+				_post_type = value;
+				post_count = 20;
+				
+				if(value == TOUSER_POST || value == MENTIONED_POST){
+					post_count = 10;
+				}
+				request();
+			}
+			
+			
+			
+			private function init():void{
+				request();
+			}
+			
+
+			private function create():void{
+				//trace("create time:", new Date().getTime()-startTime);
+				this.addEventListener("user_click", user_clickHandler, false, 0, true);
+				
+				// mac 마우스 휠 속도 차후구현..
+				//viewStack.addEventListener(MouseEvent.MOUSE_WHEEL, mouseWheelHandler);
+				_isCreate = true;
+				//addLoadingPopup();
+				
+				Messenger.getInstance.addEventListener(AlertWindowEvent.ITEM_INSERT, alert_itemInsertHandler);
+				Messenger.getInstance.start();
+			}
+			
+			
+			public function destory():void{
+				if(streamRp){
+					streamRp.removeEventListener(FlexEvent.REPEAT_START, rp_repeatStartHandler);
+					streamRp.removeEventListener(FlexEvent.REPEAT_END, rp_repeatEndHandler);
+					streamRp.dataProvider = null;
+				}
+				if(touserRp){
+					touserRp.removeEventListener(FlexEvent.REPEAT_START, rp_repeatStartHandler);
+					touserRp.removeEventListener(FlexEvent.REPEAT_END, rp_repeatEndHandler);
+					touserRp.dataProvider = null;
+				}
+				if(mentionedRp){
+					mentionedRp.removeEventListener(FlexEvent.REPEAT_START, rp_repeatStartHandler);
+					mentionedRp.removeEventListener(FlexEvent.REPEAT_END, rp_repeatEndHandler);
+					mentionedRp.dataProvider = null;
+				}
+				
+				this.removeEventListener("user_click", user_clickHandler);
+				writePostBox.removeEventListener("write_complete", write_completeHandler);
+				
+				Messenger.getInstance.removeEventListener(AlertWindowEvent.ITEM_INSERT, alert_itemInsertHandler);
+				
+				streamPosts = null;
+				touserPosts = null;
+				mentionedPosts = null;
+				
+				connect = null;
+				
+				if(alertMsgBox){
+					alertMsgBox = null;
+				}
+				
+				childDestory();
+				this.removeAllChildren();
+			}
+			
+			
+			private var newItemBox:NewItemBox;
+			
+			// 알리미 핸들러에 따라 스트림XMLListCol에 아이템을 추가합니다.
+			private function alert_itemInsertHandler(e:AlertWindowEvent):void{
+				switch(e.post_type){
+					case AlertWindowEvent.ADD_STREAM_TYPE:
+
+						// 계속 생성되는 아이템.. 그리고 비워지지 않는 메모리때문에
+						// 사용자의 새로고침을 통해서만 새로운 아이템을 확인할 수 있도록 처리합니다.
+						//addNewItem(e.item_type, e.item);
+						alertBox(e.item_type, e.item);
+						break;
+				}
+			}
+			
+			
+			private var alertMsgBox:AlertMessageBox;
+			
+			private function alertBox(type:String, itemObj:Object):void{
+				var lbText:String = "";
+				switch(type){
+					case "post":
+						lbText = "<font color='#3577BB'>"+itemObj.author.nickname+"</font>님이 포스트를 등록하셨습니다.";
+						break;
+					
+					case "comment":
+						lbText = "<font color='#3577BB'>"+itemObj.author.nickname+"</font>님이 댓글을 등록하셨습니다.";
+						break;
+				} 
+				
+				if(alertMsgBox == null){
+					alertMsgBox = new AlertMessageBox();
+					this.addChild(alertMsgBox);
+				}
+				alertMsgBox.startMsg = lbText;
+			}
+			
+			
+			private function addNewItem(type:String, itemObj:Object):void{
+				// xmllistCol 에 직접 추가할 경우 리페터를 새로 그리는 문제가 있음...
+				// 리턴되는 형태 post, comment에 따라 직접 아이템렌더러를 추가함...
+				
+				/* if(newItemBox == null){
+					newItemBox = new NewItemBox();
+					streamCanvas.addChildAt(newItemBox, 1);
+				}
+				
+				switch(type){
+					case "post":
+						newItemBox.addPost(itemObj);
+						break;
+					
+					case "comment":
+						newItemBox.addComment(itemObj);
+						break;
+				} */
+				
+				/* 새로운 알림 포스트를 바로 리스트에 추가하는것에는 문제가 많습니다.
+				알림이 정시에 도착하지 않을때가 있기 때문입니다.
+				그리고 리스트에 바로 추가 후 가장 마지막의 오래된 데이터를 삭제할때에 메모리가 제대로 비워지지 않는 문제가 있음.
+				지속적인 아이템 추가로 메모리 누수가 발생합니다. */
+					
+				// 새글 추가시 스크롤이 이동되므로 보정해줍니다.
+				if(streamCanvas.verticalScrollPosition != 0){
+					streamCanvas.verticalScrollPosition += 100;
+				}
+				
+				// 새글 추가시 마지막글 삭제 (데이터XML을 건드리면 새로고침되면서 메모리를 많이 차지하기때문에 아래처럼 렌더러만 삭제합니다.)
+				if(streamCanvas && streamCanvas.getChildren().length > 2){
+					var i:int = streamPosts.length-1;
+					streamPosts.removeItemAt(i);
+					(streamCanvas.removeChildAt(i) as TodayTileListItemRenderer).destory();
+				}
+				
+				// 에러남...10314 
+				streamPosts.addItemAt(itemObj as XML, 0);
+				
+			}
+			
+			
+			
+			
+			private function mouseWheelHandler(e:MouseEvent):void{
+				if(e.delta.toString().indexOf("-") != -1){
+					this.verticalScrollPosition += 20;
+				}
+				else{
+					if(verticalScrollPosition > 0){
+						this.verticalScrollPosition -= 20;
+					}
+				}
+			}
+			
+			
+			public var to_user_id:String; // 설정에서 접근하기 위해 public 
+			
+			private function user_clickHandler(e:UserPostPageEvent):void{
+				to_user_id = e.user_id;
+				post_type = TOUSER_POST;
+			}
+			
+			
+			public function refresh(e:Event=null):void{
+				request(true);
+			}
+			
+			
+			private var isRequest:Boolean = false;
+			private var connect:MeConnect = new MeConnect();
+			private var old_to_user_id:String;
+			
+			private function request(_refresh:Boolean=false, _offset:Number=0):void{
+				if(isRequest){
+					return;
+				}
+				
+				if(_isCreate){
+					addLoadingPopup();
+				}
+				connect.addEventListener(MeConnectEvent.GETPOSTS_RESULT, result_postsHandler);
+				
+				person_user_id = UserSetting.user_id; // 기본값 
+				//personBoxIsView = false;
+				switch(post_type){
+					case STREAM_POST:
+						viewStack.selectedChild = streamCanvas;
+						if(streamPosts && !_refresh){
+							removeLoadingPopup();
+							return;
+						}
+						
+						connect.getposts(MeConnect.POST_STREAM, post_count, _offset);
+						break;
+					
+					
+					case MENTIONED_POST:
+						viewStack.selectedChild = mentionedCanvas;
+						if(mentionedPosts && !_refresh){
+							removeLoadingPopup();
+							return;
+						}
+						
+						connect.getposts(MeConnect.POST_MENTIONED, post_count, _offset);
+						break;
+					
+					case TOUSER_POST:
+						viewStack.selectedChild = touserCanvas;
+						person_user_id = to_user_id;
+						if(old_to_user_id == to_user_id){
+							removeLoadingPopup();
+							return;
+						}
+						connect.getposts(MeConnect.POST_TOUSER, post_count, _offset, to_user_id); 
+						//personBoxIsView = true;
+						return;
+						break;
+					
+					case COMMENT_POST:
+						/* viewStack.selectedChild = commentCanvas;
+						connect.addEventListener(MeConnectEvent.TRACKCOMMENTS_RESULT, comments_resultHandler);
+						connect.trackcomments(UserSetting.user_id, null, 10); */
+						break;
+				}
+				
+				isRequest = true;
+			}
+			
+			
+			private function date_sortCompareFunc(itemA:Object, itemB:Object):int
+			{
+				var dateA:String = String(itemA).substring(0, String(itemA.pubDate).lastIndexOf("+"));
+				var dateB:String = String(itemB).substring(0, String(itemB.pubDate).lastIndexOf("+"));
+				return ObjectUtil.stringCompare(dateA, dateB);
+			}
+			
+			
+			private function comments_resultHandler(e:MeConnectEvent):void{
+				/* connect.removeEventListener(MeConnectEvent.TRACKCOMMENTS_RESULT, comments_resultHandler);
+			
+				if(commentRp.dataProvider && commentRp.dataProvider[0].comment.commentId == e.data.commentToMe[0].comment.commentId){
+					removeLoadingPopup();
+					isRequest = false;
+					return;
+				}
+				
+				commentPosts = e.data.commentToMe as XMLList;
+				commentRp.dataProvider = commentPosts;
+				isRequest = false; */
+			}
+			
+			
+			private var my_posts:XMLList;
+			private var my_comments:XMLList;
+			
+			private var old_post_type:String;
+			private var pubDateSort:Sort;
+			
+			
+			private function result_postsHandler(e:MeConnectEvent):void{
+				connect.removeEventListener(MeConnectEvent.GETPOSTS_RESULT, result_postsHandler);
+				//trace("result time", new Date().getTime() - resultTime);
+				//resultXMLCol = new XMLListCollection(new XMLList(e.data));
+				
+				// 로딩바 삭제 합니다..
+				if(loadingImg && loadingImg.visible == true){
+					loadingImg.visible = false;
+					this.removeChild(loadingImg);
+				}
+				
+				//trace("result a:", System.totalMemory);
+				// 최근메뉴 XMLList에 저장해놓습니다.
+				switch(post_type){
+					case STREAM_POST:
+						
+						// 알리미 아이템 리셋 
+						/* if(newItemBox){
+							streamCanvas.removeChild(newItemBox);
+							newItemBox.reset();
+							newItemBox = null;
+						} */
+						
+						my_posts = (e.data.post as XMLList);
+						my_comments = (e.data.comment as XMLList);
+						
+						if(pubDateSort == null){
+							pubDateSort = new Sort();
+							pubDateSort.fields = [new SortField("pubDate", false, true)];
+							
+						}
+						
+						var resultList:XMLListCollection = new XMLListCollection((my_posts + my_comments) as XMLList); 
+						resultList.sort = pubDateSort;
+						resultList.refresh();
+						
+						if(streamPosts){
+							var stream_post_id:String = streamPosts[0].post_id;
+							var result_post_id:String = resultList[0].post_id;
+							
+							var stream_comment_id:String = streamPosts[0].commentId;
+							var result_comment_id:String = resultList[0].commentId;
+							
+							
+							if(stream_post_id.length == 0 && result_post_id.length == 0){
+								if(stream_comment_id == result_comment_id){
+									removeLoadingPopup();
+									isRequest = false;
+									resultList = null;
+									this.dispatchEvent(new Event("refresh_false"));
+									return;
+								}
+								this.dispatchEvent(new Event("refresh_true"));
+							}
+							else{
+								if(stream_post_id == result_post_id){
+									removeLoadingPopup();
+									isRequest = false;
+									resultList = null;
+									this.dispatchEvent(new Event("refresh_false"));
+									return;
+								}
+								
+								this.dispatchEvent(new Event("refresh_true"));
+							}
+						}
+						
+						
+						//childDestory();
+						
+						//streamPosts = null;
+						//streamRp.dataProvider = null;
+						
+						streamPosts = resultList; 
+						streamRp.dataProvider = streamPosts;
+						
+						//System.gc();
+						
+						break;
+					
+					case MENTIONED_POST:
+						if(mentionedRp.dataProvider && mentionedRp.dataProvider[0].post_id == e.data.post[0].post_id){
+							removeLoadingPopup();
+							isRequest = false;
+							return;
+						}
+						mentionedPosts = e.data.post as XMLList;
+						mentionedRp.dataProvider = mentionedPosts;
+						break;
+					
+					case TOUSER_POST:
+						if(touserRp.dataProvider && touserRp.dataProvider[0].post_id == e.data.post[0].post_id){
+							removeLoadingPopup();
+							isRequest = false;
+							return;
+						}
+						touserPosts = e.data.post as XMLList;
+						touserRp.dataProvider = touserPosts;
+						
+						old_to_user_id = to_user_id;
+						break;
+					
+				}
+				
+				//trace("result b:", System.totalMemory);
+				isRequest = false;
+			}
+			
+			
+			
+			// 더보기 클릭..
+			private function more_clickHandler():void{
+				//post_count += 20;
+				//offset += post_count;
+				//request(true, offset);
+				Alert.show("미투데이 사이트로 연결하시겠습니까?", "알림", Alert.OK+Alert.CANCEL, this, more_closeHandler);
+			}
+			
+			
+			private function more_closeHandler(e:CloseEvent):void{
+				if(e.detail == Alert.OK){
+					navigateToURL(new URLRequest("http://me2day.net/"+UserSetting.user_id+"/stream"), "_blank");
+				}
+			}
+			
+			
+			private function set personBoxIsView(bool:Boolean):void{
+				if(personBox){
+					if(bool){
+						personBox.visible = true;
+						personBox.user_id = person_user_id;
+						personBox.height = 170;
+						
+						writePostBox.visible = false;
+						writePostBox.height = 0;
+					}
+					else{
+						personBox.visible = false;
+						personBox.height = 0;
+						
+						writePostBox.height = 132;
+						writePostBox.visible = true;
+					}
+				}
+			}
+			
+			
+			
+			private var loadingPanel:LoadingPanel;
+			
+			private function addLoadingPopup():void{
+				if(loadingPanel == null){
+					loadingPanel = new LoadingPanel();
+				}
+				PopUpManager.addPopUp(loadingPanel, this);
+				PopUpManager.centerPopUp(loadingPanel);
+			}
+			
+			
+			private function removeLoadingPopup():void{
+				var timer:Timer = new Timer(500, 1);
+				timer.addEventListener(TimerEvent.TIMER_COMPLETE, loading_timerCompleteHandler);
+				timer.start();
+			}
+
+			private function loading_timerCompleteHandler(e:TimerEvent):void{
+				var timer:Timer = e.target as Timer;
+				timer.removeEventListener(TimerEvent.TIMER_COMPLETE, loading_timerCompleteHandler);
+				timer = null;
+				
+				if(loadingPanel){
+					PopUpManager.removePopUp(loadingPanel);
+				}
+			}
+
+			protected function rp_repeatStartHandler(event:FlexEvent):void
+			{
+				//trace("rp_repeatStartHandler1:", System.totalMemory);
+				//addLoadingPopup();
+			}
+			
+
+			protected function rp_repeatEndHandler(event:FlexEvent):void
+			{
+				//removeLoadingPopup();
+			}
+			
+			
+			private function write_completeHandler():void{
+				var timer:Timer = new Timer(1000, 1);
+				timer.addEventListener(TimerEvent.TIMER_COMPLETE, write_timerCompleteHandler);
+				timer.start();
+				//addNewItem("post", writePostBox.last_write_post_obj);
+				
+				//(streamRp.dataProvider as XMLListCollection).addItemAt(writePostBox.last_write_post, 0);
+			}
+			
+			
+			private function write_timerCompleteHandler(e:TimerEvent):void{
+				var timer:Timer = e.target as Timer;
+				timer.removeEventListener(TimerEvent.TIMER_COMPLETE, write_completeHandler);
+				timer = null;
+				
+				refresh();
+			}
+			
+			
+			
+
+			
+			private function childDestory():void{
+				if(streamCanvas && streamCanvas.getChildren().length > 2){
+					for(var i:int=streamCanvas.getChildren().length-1; i>0; i--){
+						var dis:TodayTileListItemRenderer = (streamCanvas.getChildAt(i) as TodayTileListItemRenderer);
+						if(dis){
+							dis.destory();
+							dis = null;
+						}
+					}
+				}
+			}
+			
+			
+			public function refreshCehck():void{
+				refresh();
+			}
+
+
+		]]>
+	</mx:Script>
+	<mx:Image id="loadingImg" smoothBitmapContent="true" source="@Embed('/assets/icons/loading.swf')" width="25" height="25" horizontalCenter="0" verticalCenter="0"/>
+	<mx:DropShadowFilter id="shadow" distance="2" alpha="0.3" blurX="5" blurY="5" color="#666666" strength="1"/>
+	
+	<comp:DateBox x="0" y="0" width="100%" height="45"/>
+	<mx:ViewStack id="viewStack" left="5" right="4" top="50" bottom="0">
+		<mx:VBox id="streamCanvas" width="100%">
+			<comp:WritePostBox id="writePostBox" width="100%" write_complete="write_completeHandler()"/>
+			<mx:Repeater id="streamRp" repeatStart="rp_repeatStartHandler(event)" repeatEnd="rp_repeatEndHandler(event)">
+				<comp:TodayTileListItemRenderer itemObj="{streamRp.currentItem}"/>
+			</mx:Repeater>
+			<mx:Button label="브라우저에서 더보기.." width="100%" height="30" click="more_clickHandler()"/>
+		</mx:VBox>
+		<mx:VBox id="touserCanvas" width="100%" >
+			<comp:PersonBox id="personBox" visible="true" height="0"/>
+			<mx:Repeater id="touserRp" repeatStart="rp_repeatStartHandler(event)" repeatEnd="rp_repeatEndHandler(event)">
+				<comp:TodayTileListItemRenderer itemObj="{touserRp.currentItem}"/>
+			</mx:Repeater>
+		</mx:VBox>
+		<mx:VBox id="mentionedCanvas" width="100%">
+			<mx:Repeater id="mentionedRp" repeatStart="rp_repeatStartHandler(event)" repeatEnd="rp_repeatEndHandler(event)">
+				<comp:TodayTileListItemRenderer itemObj="{mentionedRp.currentItem}"/>
+			</mx:Repeater>
+		</mx:VBox>
+		<!--<mx:VBox id="commentCanvas" width="100%">
+			<mx:Repeater id="commentRp" repeatStart="rp_repeatStartHandler(event)" repeatEnd="rp_repeatEndHandler(event)">
+				<comp:TodayTileListItemRenderer itemObj="{commentRp.currentItem}"/>
+			</mx:Repeater>
+		</mx:VBox>-->
+	</mx:ViewStack>
+	
+</mx:Canvas>

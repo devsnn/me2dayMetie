@@ -1,0 +1,88 @@
+package util
+{
+	import flash.desktop.DockIcon;
+	import flash.desktop.NativeApplication;
+	import flash.desktop.SystemTrayIcon;
+	import flash.display.Bitmap;
+	import flash.display.NativeMenu;
+	import flash.display.NativeMenuItem;
+	import flash.events.Event;
+	import flash.events.MouseEvent;
+	
+	import mx.core.Application;
+	import mx.core.WindowedApplication;
+
+	
+	public class TrayManager
+	{
+		
+		[Embed(source="icons/leaf16.png")]
+		public var trayIcon:Class;
+		
+		
+		private var _windowApp:WindowedApplication;
+		
+		public function TrayManager()
+		{
+		}
+		
+		public function get windowApp():WindowedApplication
+		{
+			return _windowApp;
+		}
+
+		public function set windowApp(value:WindowedApplication):void
+		{
+			_windowApp = value;
+			trayMenuCreate();
+		}
+
+		public function trayMenuCreate():void{
+			var menu:NativeMenu = new NativeMenu();
+			
+			var item:NativeMenuItem;
+			
+			/* item = new NativeMenuItem("새 글 쓰기");
+			menu.items.push(item);
+			
+			item = new NativeMenuItem("me2DAY 바로가기");
+			menu.items.push(item);
+			
+			item = new NativeMenuItem(UserSetting.user_id+"님 마이미투");
+			menu.items.push(item);
+			
+			item = new NativeMenuItem("미티 로그아웃");
+			menu.items.push(item); */
+			
+			item = new NativeMenuItem("미티 종료");
+			item.addEventListener(Event.SELECT, exit_selectHandler);
+			menu.addItem(item);
+			
+			if(NativeApplication.supportsSystemTrayIcon){
+				(NativeApplication.nativeApplication.icon as SystemTrayIcon).menu = menu;
+				(NativeApplication.nativeApplication.icon as SystemTrayIcon).addEventListener(MouseEvent.CLICK, trayIcon_clickHandler);
+				
+				var trayBitmap:Bitmap = new trayIcon();
+				NativeApplication.nativeApplication.icon.bitmaps = [trayBitmap.bitmapData];
+			}
+			else if(NativeApplication.supportsDockIcon){
+				(NativeApplication.nativeApplication.icon as DockIcon).menu = menu;
+				(NativeApplication.nativeApplication.icon as DockIcon).addEventListener(Event.ACTIVATE, trayIcon_clickHandler);
+			}
+			windowApp.contextMenu = menu;
+		}
+		
+		
+		private function trayIcon_clickHandler(e:Event):void{
+			windowApp.stage.nativeWindow.visible = true;
+			windowApp.stage.nativeWindow.orderToFront();
+		}
+		
+		
+		
+		private function exit_selectHandler(e:Event):void{
+			Application.application.exit();
+		}
+		
+	}
+}

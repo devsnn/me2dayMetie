@@ -1,0 +1,53 @@
+package response
+{
+	public class Post
+	{
+		
+		public var post_id:String;
+		public var permalink:String;
+		public var body:String;
+		public var kind:String;
+		public var icon:String;
+		public var tagText:String;
+		public var pubDate:String;
+		public var commentsCount:String;
+		public var metooCount:String;
+		public var commentClosed:String;
+		public var contentType:String;
+		public var callbackUrl:String;
+		public var iconUrl:String;
+		
+		public var write_id:String;
+		public var nickname:String;
+		public var face:String;
+		
+		public var photoId:String;
+		public var photoUrl:String;
+		
+		
+		public function Post(item:Object)
+		{
+			post_id = item.post_id;
+			permalink = item.permalink;
+			body = item.body;
+			kind = item.kind;
+			icon = item.icon;
+			tagText = item.tagText;
+			pubDate = item.pubDate;
+			commentsCount = item.commentsCount;
+			metooCount = item.metooCount;
+			commentClosed = item.commentClosed;
+			contentType = item.contentType;
+			callbackUrl = item.callbackUrl;
+			iconUrl = item.iconUrl;
+			
+			write_id = item.author.id;
+			nickname = item.author.nickname;
+			face = item.author.face;
+			
+			photoId = item.media.me2photo.photoId;
+			photoUrl = item.media.me2photo.photoUrl;
+			
+		}
+	}
+}

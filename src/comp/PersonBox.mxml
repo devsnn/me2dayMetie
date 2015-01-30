@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<comp:GradientCanvas initialize="init()" xmlns:comp="comp.*" width="100%" borderStyle="solid" borderColor="#999999" filters="{[shadow]}" creationComplete="create()" horizontalScrollPolicy="off" verticalScrollPolicy="off" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:todaytool="todaytool.*">
+	<mx:Script>
+		<![CDATA[
+			import com.lhd.MeConnect;
+			import com.lhd.events.MeConnectEvent;
+			
+			import comp.*;
+			
+			import response.Person;
+			
+		
+			[Bindable] private var tagText:String;
+			
+			private var _person:Person;
+			private var _user_id:String;
+			
+			
+			public function get user_id():String
+			{
+				return _user_id;
+			}
+
+			public function set user_id(value:String):void
+			{
+				_user_id = value;
+				requestPerson();
+			}
+
+			public function get person():Person
+			{
+				return _person;
+			}
+
+			public function set person(value:Person):void
+			{
+				_person = value;
+				requestUserTags();
+			}
+			
+			
+
+			private function init():void{
+				
+			}
+			
+			
+			
+			private function create():void{
+				
+			}
+			
+			
+			
+			override protected function commitProperties() : void{
+				setData(data);
+			}
+			
+			
+			private function requestPerson():void{
+				var connect:MeConnect = new MeConnect();
+				connect.addEventListener(MeConnectEvent.GETPERSON_RESULT, person_resultHandler);
+				connect.getperson(user_id);
+			}
+			
+			
+			private function person_resultHandler(e:MeConnectEvent):void{
+				person = new Person(e.data);
+				
+				setData(data);
+			}
+			
+			
+			
+			private function requestUserTags():void{
+				var connect:MeConnect = new MeConnect();
+				connect.addEventListener(MeConnectEvent.GETTAGS_RESULT, tags_resultHandler);
+				connect.gettags(person.user_id, 5);
+			}
+			
+			
+			
+			private function tags_resultHandler(e:MeConnectEvent):void{
+				var tag:XMLList = new XMLList(e.data.tag);
+				var tagArr:Array = [];
+				for(var i:int=0; i<tag.length(); i++){
+					tagArr.push(tag[i].name + '('+tag[i].count+')');
+				}
+				
+				tagText = "자주쓰는 태그 : "+ tagArr.toString();
+			}
+			
+			
+			
+			private function setData(item:Object):String{
+				// photo img 가져오기..
+				if(person){
+					img.source = person.face;
+					nameLb.text = person.nickname;
+					
+					
+					var text:String = person.description.replace(new RegExp("<a href='", "g"), "<font color='#3577BB'><b><a href='event:");
+					text = text.replace(new RegExp("</a>", "g"), "</a></b></font>");
+					
+					
+					todayText.htmlText = text;
+					
+					infoText.htmlText = getInfoText(person);
+				}
+				return "";
+			}
+			
+			
+			private function getInfoText(user:Person):String{
+				var re:String = "";
+				
+				var cellphone:String = (user.cellphone == "")?"공개안함":user.cellphone;
+				var email:String = (user.email == "")?"공개안함":user.email;
+				var friendsCount:String = (user.friendsCount == "")?"공개안함":user.friendsCount;
+				var homepage:String = (user.homepage == "")?"공개안함":user.homepage;
+				
+				re += "휴대폰 : "+ cellphone + "<br>";
+				re += "이메일 : "+ email + "<br>";
+				re += "친구 수 : "+ friendsCount + "명<br>";
+				re += "홈페이지 : "+ homepage + "<br>";
+				return re;
+			}
+			
+			
+			
+			
+		]]>
+	</mx:Script>
+	<mx:DropShadowFilter id="shadow" distance="2" alpha="0.3" blurX="5" blurY="5" color="#666666" strength="1"/>
+	<mx:VBox x="2" y="2" width="72" height="90" verticalGap="4" horizontalAlign="center" paddingBottom="2" paddingLeft="2" paddingRight="2" paddingTop="4">
+		<comp:CornerImage id="img" cacheAsBitmap="true" width="60" height="60" smoothBitmapContent="true" filters="{[shadow]}"/>
+		<mx:Label id="nameLb" width="68" textAlign="center" fontWeight="bold"/>
+	</mx:VBox>
+	<mx:VBox id="textVbox" x="72" y="2" width="100%" paddingBottom="2" paddingLeft="2" paddingRight="2" paddingTop="2" verticalGap="1" verticalAlign="top">
+		<mx:HBox width="100%" paddingLeft="8">
+			<comp:TodayText id="todayText" styleName="todayText" selectable="false" width="100%" fontWeight="bold" paddingLeft="2" paddingRight="2" paddingTop="2" paddingBottom="2" textAlign="left"/>
+		</mx:HBox>
+		<mx:Text id="infoText" styleName="todayText" fontSize="10" fontWeight="bold" selectable="true" width="100%" paddingLeft="10"/>
+		<mx:Text text="{tagText}" styleName="tagText" fontWeight="bold" width="100%" fontSize="9" selectable="false" paddingLeft="10" paddingRight="4"/>
+	</mx:VBox>
+</comp:GradientCanvas>

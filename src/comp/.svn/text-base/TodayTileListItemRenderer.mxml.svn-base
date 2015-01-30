@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<comp:GradientCanvas xmlns:comp="comp.*" width="100%" borderStyle="solid" borderColor="#999999" filters="{[shadow]}" horizontalScrollPolicy="off" verticalScrollPolicy="off" xmlns:mx="http://www.adobe.com/2006/mxml">
+	<mx:Script>
+		<![CDATA[
+			
+			import flash.display.Bitmap;
+			import flash.events.Event;
+			import flash.events.MouseEvent;
+			import flash.events.TextEvent;
+			import flash.net.URLRequest;
+			import flash.net.navigateToURL;
+			import mx.controls.Alert;
+			import mx.controls.Image;
+			import mx.core.UIComponent;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			
+			import response.Post;
+			
+			import util.MetieUtil;
+			import util.Styles;
+			
+			
+			[Bindable] private var heightValue:int;
+			[Bindable] private var textValue:String;
+			
+			[Bindable] private var photo_url:String;
+			[Bindable] private var commentsCount:String;
+			[Bindable] private var metooCount:String;
+			[Bindable] private var tagText:String;
+			[Bindable] private var date_ago:String;
+			
+			private var _post:Post;
+			
+			
+			public function get post():Post
+			{
+				return _post;
+			}
+
+			public function set post(value:Post):void
+			{
+				_post = value;
+			}
+
+			
+			
+			override protected function commitProperties() : void{
+				setData(data);
+			}
+			
+			
+			
+			private function setData(item:Object):String{
+								
+				// photo img 가져오기..
+				img.source = post.face;
+				nameLb.text = ""+post.nickname+"";
+				
+				
+				photo_url = post.photoUrl;
+				commentsCount = post.commentsCount;
+				metooCount = post.metooCount;
+				tagText = post.tagText;
+				
+				var text:String = post.body.replace(new RegExp("<a href='", "g"), "<font color='#3577BB'><b><a href='event:");
+				text = text.replace(new RegExp("</a>", "g"), "</a></b></font>");
+				
+				
+				todayText.htmlText = text;
+				
+				// date 가져오기..
+				date_ago = MetieUtil.getDateAgo(post.pubDate);
+				
+				return textValue;
+			}
+			
+			
+			
+			private var imagePreview:ImagePreview;
+			
+			private function photo_clickHandler():void{
+				if(imagePreview == null){
+					imagePreview = new ImagePreview();
+				}
+				imagePreview.post = post;
+				
+				PopUpManager.addPopUp(imagePreview, this.parent as UIComponent, true);
+				PopUpManager.centerPopUp(imagePreview);
+			}
+			
+			private var ori_y:int;
+			private var commentBox:CommentBox;
+			
+			protected function comment_clickHandler(event:MouseEvent):void
+			{
+				
+				removeBox(metooBox);
+				
+				if(commentBox != null && contentVBox.getChildren().length > 0){
+					removeBox(commentBox);
+				}
+				else{
+					commentBox = new CommentBox();
+					commentBox.percentWidth = 100;
+					commentBox.post_id = post.post_id;
+					
+					if(!ori_y){
+						ori_y = this.height;
+						contentVBox.y = ori_y;
+					}
+					contentVBox.addChild(commentBox);
+					
+				}
+			}
+
+			
+			private function removeBox(box:UIComponent):void{
+				for(var i:int=0; i<contentVBox.getChildren().length; i++){
+					if(contentVBox.getChildren()[i] == box){
+						contentVBox.removeChild(contentVBox.getChildren()[i]);
+						contentVBox.getChildren()[i] = null;
+					}
+				}
+			}
+			
+			private var metooBox:MetooBox;
+			
+			private function metoo_clickHandler():void{
+				
+				removeBox(commentBox);
+				
+				if(metooBox != null && contentVBox.getChildren().length > 0){
+					removeBox(metooBox);
+				}
+				else{
+					metooBox = new MetooBox();
+					metooBox.percentWidth = 100;
+					metooBox.post_id = post.post_id;
+					
+					if(!ori_y){
+						ori_y = this.height;
+						contentVBox.y = ori_y;
+					}
+					contentVBox.addChild(metooBox);
+				}
+				
+			}
+
+
+			private var link_text:String;
+			
+			private function todayText_linkHandler(e:TextEvent):void{
+				link_text = e.text;
+				
+				if(e.text.indexOf("http://me2day.net/") != -1 && e.text.indexOf("#") == -1){
+					var uid:String = e.text.substring(e.text.lastIndexOf("/")+1, e.text.length);
+					this.dispatchEvent(new UserPostPageEvent("user_click", uid, true));
+				}
+				else{
+					Alert.show("브라우져에서 열겠습니까?", "알림", Alert.OK+Alert.CANCEL, this, close_linkHandler);
+				}
+			}
+			
+			private function close_linkHandler(e:CloseEvent):void{
+				if(Alert.OK == e.detail){
+					navigateToURL(new URLRequest(link_text), "_blank");
+				}
+			}
+			
+			
+			private function user_clickHandler():void{
+				this.dispatchEvent(new UserPostPageEvent("user_click", post.write_id, true));
+			}
+			
+			
+			
+		]]>
+	</mx:Script>
+	<mx:DropShadowFilter id="shadow" distance="2" alpha="0.3" blurX="5" blurY="5" color="#666666" strength="1"/>
+	<mx:VBox x="2" y="2" width="72" height="90" verticalGap="4" horizontalAlign="center" paddingBottom="2" paddingLeft="2" paddingRight="2" paddingTop="4">
+		<comp:CornerImage id="img" buttonMode="true" click="user_clickHandler()" cacheAsBitmap="true" width="60" height="60" smoothBitmapContent="true" filters="{[shadow]}"/>
+	</mx:VBox>
+	<mx:Canvas filters="{[shadow]}" x="{img.x+2}" y="44" horizontalScrollPolicy="off" verticalScrollPolicy="off" width="{img.width}" backgroundAlpha="0.4" backgroundColor="#000000" color="#ffffff">
+		<mx:Label id="nameLb" horizontalCenter="0" verticalCenter="0" width="68" textAlign="center"/>
+	</mx:Canvas>
+	<mx:VBox id="textVbox" x="72" y="2" width="100%" paddingBottom="2" paddingLeft="2" paddingRight="2" paddingTop="2" verticalGap="1" verticalAlign="top">
+		<mx:HBox width="100%">
+			<mx:Image source="{photo_url}" cacheAsBitmap="true" smoothBitmapContent="true" buttonMode="true" click="photo_clickHandler()" width="{(photo_url!='')?40:0}" height="40"/>
+			<comp:TodayText id="todayText" styleName="todayText" fontWeight="bold" selectable="true" link="todayText_linkHandler(event)" width="100%" paddingLeft="2" paddingRight="2" paddingTop="2" paddingBottom="2" textAlign="left"/>
+		</mx:HBox>
+		<mx:Text text="{tagText}" styleName="tagText" fontWeight="bold" width="100%" selectable="false" paddingLeft="10" paddingRight="4"/>
+		<mx:HBox width="100%" horizontalGap="2" horizontalAlign="right" verticalAlign="middle">
+			<mx:Label text="{date_ago}" fontSize="9"/>
+			<mx:Label text="comment" fontSize="9"/>
+			<mx:LinkButton label="{commentsCount}" click="comment_clickHandler(event)" fontWeight="bold" fontSize="10" styleName="{Styles.FONT_BROWN}"/>
+			<mx:Label text="metoo" fontSize="9"/>
+			<mx:LinkButton label="{metooCount}" click="metoo_clickHandler()" fontWeight="bold" fontSize="10" styleName="{Styles.FONT_BROWN}"/>
+		</mx:HBox>
+	</mx:VBox>
+	<mx:VBox id="contentVBox" x="2" width="100%" paddingBottom="2" paddingLeft="2" paddingRight="2" paddingTop="2" verticalGap="1" verticalAlign="top"/>
+</comp:GradientCanvas>

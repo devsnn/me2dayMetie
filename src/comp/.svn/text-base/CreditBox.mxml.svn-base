@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox initialize="init()" verticalGap="10" paddingBottom="4" paddingLeft="4" paddingRight="4" paddingTop="4" xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%" xmlns:comp="comp.*">
+	<mx:Metadata>
+		[Event(name="tagComplete",type="flash.events.Event")]
+		[Event(name="user_click",type="comp.UserPostPageEvent")]
+	</mx:Metadata>
+	<mx:Script>
+		<![CDATA[
+			import auth.MetieVer;
+			
+			import com.lhd.MeConnect;
+			import com.lhd.events.MeConnectEvent;
+			
+			import flash.events.Event;
+			import flash.net.SharedObject;
+			
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			
+			import response.Person;
+			
+			import util.Styles;
+			
+			[Bindable] private var person_sedurn:Person;
+			[Bindable] private var person_onemind:Person;
+			
+			private function init():void{
+				get_sedurn();
+				get_onemind();
+			}
+			
+			
+			private function get_sedurn():void{
+				var connect:MeConnect = new MeConnect();
+				connect.addEventListener(MeConnectEvent.GETPERSON_RESULT, result_sedurnHandler);
+				connect.getperson("sedurn");
+			}
+			
+			private function result_sedurnHandler(e:MeConnectEvent):void{
+				person_sedurn = new Person(e.data);
+			}
+			
+			private function get_onemind():void{
+				var connect:MeConnect = new MeConnect();
+				connect.addEventListener(MeConnectEvent.GETPERSON_RESULT, result_onemindHandler);
+				connect.getperson("onemind");
+			}
+			
+			private function result_onemindHandler(e:MeConnectEvent):void{
+				person_onemind = new Person(e.data);
+			}
+			
+			
+			private function tagsave_clickHandler():void{
+				var so:SharedObject = SharedObject.getLocal("metie");
+				so.data.tagText = tagInput.text;
+				so.flush(50000);
+				
+				Alert.show("저장되었습니다.", "알림", 4, this);
+				
+				this.dispatchEvent(new Event("tagComplete"));
+			}
+			
+			
+
+			protected function tagInput_creationCompleteHandler(event:FlexEvent):void
+			{
+				var so:SharedObject = SharedObject.getLocal("metie");
+				if(so.data.tagText != null){
+					tagInput.text = so.data.tagText;
+				}
+			}
+			
+			private function text_linkHandler(e:TextEvent):void{
+				if(e.text.indexOf("http://me2day.net/") != -1 && e.text.indexOf("#") == -1){
+					var uid:String = e.text.substring(e.text.lastIndexOf("/")+1, e.text.length);
+					this.dispatchEvent(new UserPostPageEvent("user_click", uid, true));
+				}
+			}
+			
+			
+			private function uid_clickHandler(uid:String):void{
+				this.dispatchEvent(new UserPostPageEvent("user_click", uid, true));
+			}
+
+
+			protected function startCB_changeHandler(event:Event):void
+			{
+				NativeApplication.nativeApplication.startAtLogin = startCB.selected;
+			}
+
+		]]>
+	</mx:Script>
+	<mx:DropShadowFilter id="shadow" distance="2" alpha="0.3" blurX="5" blurY="5" color="#666666" strength="1"/>
+	
+	<comp:GradientVBox horizontalAlign="center" verticalAlign="middle" filters="{[shadow]}" width="100%" height="250" paddingBottom="4" paddingLeft="4" paddingRight="4" paddingTop="4">
+		<mx:Image source="@Embed('/icons/leaf32.png')" smoothBitmapContent="true"/>
+		<mx:Label text="{'Metie '+MetieVer.INFO}" styleName="{Styles.FONT_BROWN}"/>
+	</comp:GradientVBox>
+	
+	<comp:GradientVBox verticalGap="4" filters="{[shadow]}" width="100%" height="100%" paddingBottom="4" paddingLeft="4" paddingRight="4" paddingTop="4">
+		<mx:Label text="자주쓰는 태그" fontWeight="bold"/>
+		<mx:HBox width="100%" paddingBottom="4" paddingLeft="4" paddingRight="4" paddingTop="4">
+			<comp:NovTextInput id="tagInput" width="100%" creationComplete="tagInput_creationCompleteHandler(event)"/>
+			<mx:Button label="저장" click="tagsave_clickHandler()"/>
+		</mx:HBox>
+		<mx:Label text="다음에도 쉽게 사용할 수 있도록 항상유지됩니다." fontSize="10" color="#666666"/>
+		<mx:HBox width="100%" paddingBottom="4" paddingLeft="4" paddingRight="4" paddingTop="4">
+			<mx:Label text="윈도우 시작시 자동실행" fontWeight="bold"/>
+			<mx:CheckBox id="startCB" change="startCB_changeHandler(event)" selected="{NativeApplication.nativeApplication.startAtLogin}"/>
+		</mx:HBox>
+	</comp:GradientVBox>
+	
+	<mx:Label text="Metie by Teamsm" fontSize="10" fontWeight="bold"/>
+	<comp:GradientHBox filters="{[shadow]}" width="180" horizontalAlign="center" paddingBottom="4" paddingLeft="4" paddingRight="4" paddingTop="4">
+			<mx:LinkButton label="{person_sedurn.nickname}" click="uid_clickHandler('sedurn')" width="68" textAlign="center"/>
+			<mx:LinkButton label="{person_onemind.nickname}" click="uid_clickHandler('onemind')" width="68" textAlign="center"/>
+	</comp:GradientHBox>
+</mx:VBox>

@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox creationComplete="create()" xmlns:mx="http://www.adobe.com/2006/mxml" horizontalGap="4" width="100%" height="100%" xmlns:comp="comp.*">
+	<mx:Script>
+		<![CDATA[
+			import com.lhd.MeConnect;
+			import com.lhd.events.MeConnectEvent;
+			
+			import flash.events.MouseEvent;
+			
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			
+			import response.Author;
+			
+			private var resultXMLList:XMLList;
+			
+			private var _post_id:String;
+
+			public function get post_id():String
+			{
+				return _post_id;
+			}
+
+			public function set post_id(value:String):void
+			{
+				_post_id = value;
+				request();
+			}
+			
+			
+			private function create():void{
+				metooBtn.addEventListener(MouseEvent.CLICK, metoo_clickHandler);
+			}
+			
+			public function destory():void{
+				metooBtn.removeEventListener(MouseEvent.CLICK, metoo_clickHandler);
+				resultXMLList = null;
+				if(tileList){
+					tileList.dataProvider = null;
+					tileList = null;
+				}
+				this.removeAllChildren();
+			}
+			
+			private var connect:MeConnect = new MeConnect();
+			
+			private function request():void{
+				connect.addEventListener(MeConnectEvent.GETMETOOS_RESULT, result_getMetooHandler);
+				connect.getmetoos(post_id);
+			}
+			
+			
+			private function result_getMetooHandler(e:MeConnectEvent):void{
+				connect.removeEventListener(MeConnectEvent.GETMETOOS_RESULT, result_getMetooHandler);
+				resultXMLList = e.data.metoo;
+				tileList.dataProvider = resultXMLList;
+			}
+			
+			
+			private function metoo_clickHandler():void{
+				connect.addEventListener(MeConnectEvent.ON_FAULT, falut_metooHandler);
+				connect.addEventListener(MeConnectEvent.METOO_RESULT, result_metooHandler);
+				connect.metoo(post_id);
+			}
+			
+			private function result_metooHandler(e:MeConnectEvent):void{
+				connect.removeEventListener(MeConnectEvent.METOO_RESULT, result_metooHandler);
+				Alert.show("미투했습니다!", "알림", 4, this, close_metooHandler);
+			}
+			
+			private function falut_metooHandler(e:MeConnectEvent):void{
+				connect.removeEventListener(MeConnectEvent.ON_FAULT, falut_metooHandler);
+				trace("미투실패메세지:", e.data);
+				Alert.show(new XML(e.data).description, "알림", 4, this);
+			}
+			
+			
+			private function close_metooHandler(e:CloseEvent):void{
+				request();
+			}
+			
+			
+
+		]]>
+	</mx:Script>
+	<mx:Button id="metooBtn" label="미투하기" width="100%"/>
+	<mx:TileList id="tileList" cornerRadius="10" selectable="false" width="100%" height="100" paddingBottom="4" paddingLeft="4" paddingRight="4" paddingTop="4">
+		<mx:itemRenderer>
+			<mx:Component>
+				<mx:VBox width="72" height="90" verticalGap="4" buttonMode="true" click="vbox1_clickHandler(event)" horizontalAlign="center" paddingBottom="2" paddingLeft="2" paddingRight="2" paddingTop="2">
+					<mx:Script>
+						<![CDATA[
+							import flash.events.MouseEvent;
+							
+							
+							
+							override protected function commitProperties() : void{
+								img.source = data.author.face;
+								nickLb.text = data.author.nickname;
+							} 
+							
+
+							protected function vbox1_clickHandler(event:MouseEvent):void
+							{
+								this.dispatchEvent(new UserPostPageEvent("user_click", data.author.id, true));
+							}
+
+						]]>
+					</mx:Script>
+					<comp:CornerImage id="img" buttonMode="true" smoothBitmapContent="true" width="60" height="60" filters="{[shadow]}"/>
+					<mx:Label id="nickLb" width="68" textAlign="center"/>
+					<mx:DropShadowFilter id="shadow" distance="2" alpha="0.3" blurX="5" blurY="5" color="#666666" strength="1"/>
+				</mx:VBox>
+			</mx:Component>
+		</mx:itemRenderer>
+	</mx:TileList>
+</mx:VBox>

@@ -1,0 +1,25 @@
+package response
+{
+	public class Comment
+	{
+		
+		public var comment_id:String;
+		public var body:String;
+		public var pubDate:String;
+		public var write_id:String;
+		public var nickname:String;
+		public var face:String;
+		public var home_url:String;
+		
+		public function Comment(item:Object)
+		{
+			comment_id = item.commentId;
+			body = item.body;
+			pubDate = item.pubDate;
+			write_id = item.author.id;
+			nickname = item.author.nickname;
+			face = item.face;
+			home_url = item.me2dayHome;
+		}
+	}
+}

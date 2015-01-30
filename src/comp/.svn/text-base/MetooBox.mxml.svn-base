@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox creationComplete="create()" xmlns:mx="http://www.adobe.com/2006/mxml" horizontalGap="4" width="100%" height="100%" xmlns:comp="comp.*">
+	<mx:Script>
+		<![CDATA[
+			import com.lhd.MeConnect;
+			import com.lhd.events.MeConnectEvent;
+			
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			
+			[Bindable] private var resultXMLList:XMLList;
+			
+			private var _post_id:String;
+
+			public function get post_id():String
+			{
+				return _post_id;
+			}
+
+			public function set post_id(value:String):void
+			{
+				_post_id = value;
+				request();
+			}
+			
+			
+			private function create():void{
+			}
+			
+			private function request():void{
+				var connect:MeConnect = new MeConnect();
+				connect.addEventListener(MeConnectEvent.GETMETOOS_RESULT, result_getMetooHandler);
+				connect.getmetoos(post_id);
+			}
+			
+			
+			private function result_getMetooHandler(e:MeConnectEvent):void{
+				resultXMLList = e.data.metoo;
+			}
+			
+			
+			private function metoo_clickHandler():void{
+				var connect:MeConnect = new MeConnect();
+				connect.addEventListener(MeConnectEvent.ON_FAULT, falut_metooHandler);
+				connect.addEventListener(MeConnectEvent.METOO_RESULT, result_metooHandler);
+				connect.metoo(post_id);
+			}
+			
+			private function result_metooHandler(e:MeConnectEvent):void{
+				Alert.show("미투했습니다!", "알림", 4, this, close_metooHandler);
+			}
+			
+			private function falut_metooHandler(e:MeConnectEvent):void{
+				trace(new XML(e.data));
+				Alert.show(new XML(e.data).description, "알림", 4, this);
+			}
+			
+			
+			private function close_metooHandler(e:CloseEvent):void{
+				request();
+			}
+
+		]]>
+	</mx:Script>
+	<mx:Button label="미투하기" width="100%" click="metoo_clickHandler()"/>
+	<mx:TileList cornerRadius="10" selectable="false" dataProvider="{resultXMLList}" width="100%" height="100" paddingBottom="4" paddingLeft="4" paddingRight="4" paddingTop="4">
+		<mx:itemRenderer>
+			<mx:Component>
+				<mx:VBox width="72" height="90" verticalGap="4" horizontalAlign="center" paddingBottom="2" paddingLeft="2" paddingRight="2" paddingTop="2">
+					<comp:CornerImage id="img" source="{data.author.face}" smoothBitmapContent="true" width="60" height="60" filters="{[shadow]}"/>
+					<mx:Label text="{data.author.nickname}" width="68" textAlign="center"/>
+					<mx:DropShadowFilter id="shadow" distance="2" alpha="0.3" blurX="5" blurY="5" color="#666666" strength="1"/>
+				</mx:VBox>
+			</mx:Component>
+		</mx:itemRenderer>
+	</mx:TileList>
+</mx:VBox>

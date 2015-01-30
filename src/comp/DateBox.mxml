@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<comp:GradientCanvas creationComplete="create()" styleName="{Styles.GRADIENT_BLACK}" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:comp="comp.*" width="100%" height="100%">
+	<mx:Metadata>
+		[Event(name="write_click",type="flash.events.Event")]
+	</mx:Metadata>
+	<mx:Script>
+		<![CDATA[
+			import flash.events.Event;
+			import flash.net.URLRequest;
+			import flash.net.navigateToURL;
+			
+			import util.Styles;
+			
+			
+			
+			private function create():void{
+				var date:Date = new Date();
+				
+				var str_month:String;
+				var str_day:String;
+				
+				if(date.getMonth() < 9){
+					str_month = "0" + (date.getMonth()+1);
+				}
+				else{
+					str_month = (date.getMonth()+1).toString();
+				}
+				
+				if(date.getDate() < 10){
+					str_day = "0" + date.getDate();	
+				}
+				else{
+					str_day = date.getDate().toString();
+				}
+				
+				
+				var str_date:String = date.toDateString().substr(0, 3);
+				dateLb.text = str_month + "월 " + str_day+"일";
+				dayLb.text = "("+str_date+")";
+				
+			}
+			
+			
+			private function me2day_clickHandler():void{
+				navigateToURL(new URLRequest("http://me2day.net"), "_blank");
+			}
+			
+			
+			private function write_clickHandler():void{
+				this.dispatchEvent(new Event("write_click"));
+			}
+			
+			
+		]]>
+	</mx:Script>
+	
+	<mx:HBox horizontalCenter="0" verticalCenter="0" horizontalGap="2">
+		<mx:Label id="dateLb" text="09월 04일" fontSize="15" color="#ffffff" styleName="todayText" fontWeight="bold" letterSpacing="-1"/>
+		<mx:Label id="dayLb" text="(THU)" fontSize="15" color="#ffffff" styleName="todayText" fontWeight="bold" letterSpacing="0"/>
+	</mx:HBox>
+	
+	<mx:LinkButton label="me2DAY" click="me2day_clickHandler()" color="#ffffff" left="10" top="8"/>
+	<mx:LinkButton label="글쓰기" click="write_clickHandler()" icon="@Embed('/assets/icons/write.png')" right="10" top="8" color="#eeeeee"/>
+</comp:GradientCanvas>

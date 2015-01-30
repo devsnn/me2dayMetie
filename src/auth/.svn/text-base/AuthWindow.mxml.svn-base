@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow creationComplete="create()" backgroundColor="#666666" initialize="init()" xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" width="100%" height="100%">
+	<mx:Script>
+		<![CDATA[
+			import flash.display.Sprite;
+			import flash.events.Event;
+			
+			import header.DBConnecter;
+			
+			import mx.controls.Alert;
+			import mx.controls.Button;
+			import mx.events.CloseEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import request.RequestAuth;
+			import request.RequestAuthToken;
+			
+			import util.UserSetting;
+			
+			
+			private var token:String;
+			[Bindable] private var msg:String = ""; 
+			
+			private function init():void{
+				
+			}
+			
+			private function create():void{
+				Alert.show("미투데이 사이트에서 수락을 눌러야 이용이 가능합니다.", "인증", 4 , this.parent as Sprite, close_AlertHandler);
+			}
+			
+			
+			private function close_AlertHandler(e:CloseEvent):void{
+				request();
+			}
+			
+			
+			private function request():void{
+				var req:RequestAuth = new RequestAuth();
+				var dbConnect:DBConnecter = new DBConnecter();
+				dbConnect.addEventListener(ResultEvent.RESULT, result_authHandler);
+				dbConnect.query(req);
+			}
+			
+			
+			private function result_authHandler(e:ResultEvent):void{
+				navigateToURL(new URLRequest(e.result.url), "_blank");
+				
+				token = e.result.token;
+				
+			}
+			
+			
+			private function requestAuthToken(e:Event):void{
+				(e.target as Button).enabled = false;
+				
+				var req:RequestAuthToken = new RequestAuthToken(token);
+				var dbConnect:DBConnecter = new DBConnecter();
+				dbConnect.addEventListener(ResultEvent.RESULT, result_authTokenHandler);
+				dbConnect.query(req);
+			}
+			
+			
+			private function result_authTokenHandler(e:ResultEvent):void{
+				UserSetting.user_id = e.result.user_id;
+				UserSetting.full_auth_token = e.result.full_auth_token;
+				msg = "인증이 완료되었습니다!";
+				
+				var so:SharedObject = SharedObject.getLocal("metie");
+				so.data.user_id = new String(e.result.user_id);
+				so.data.full_auth_token = new String(e.result.full_auth_token);
+				so.flush(10000);
+				
+				this.dispatchEvent(new Event(Event.COMPLETE));
+			}
+			
+			
+		]]>
+	</mx:Script>
+	<mx:Label text="{msg}" horizontalCenter="0" verticalCenter="0"/>
+	<mx:Button label="사이트에서 수락을 눌렀습니다!" color="#000000" height="40" click="requestAuthToken(event)" horizontalCenter="0" verticalCenter="28"/>
+</mx:TitleWindow>

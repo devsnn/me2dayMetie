@@ -1,0 +1,498 @@
+<?xml version="1.0" encoding="utf-8"?>
+<comp:GradientCanvas initialize="init()" creationComplete="create()" xmlns:comp="comp.*" width="100%" borderStyle="solid" borderColor="#999999" filters="{[shadow]}" horizontalScrollPolicy="off" verticalScrollPolicy="off" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:local="*">
+	<mx:Script>
+		<![CDATA[
+			import flash.events.Event;
+			import flash.events.MouseEvent;
+			import flash.events.TextEvent;
+			
+			import mx.controls.Alert;
+			import mx.controls.Image;
+			import mx.core.UIComponent;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			
+			import response.Comment;
+			import response.Post;
+			
+			import util.FindCommentByPost;
+			import util.MetieUtil;
+			import util.Styles;
+			import util.UserSetting;
+			
+			
+			
+			private var icon_url:String;
+			private var commentsCount:String;
+			private var metooCount:String;
+			private var tag:String;
+			private var date_ago:String;
+			
+			private var face_url:String;
+			private var nickname:String;
+			
+			
+			
+			
+			private var _post:Post;
+			private var _comment:Comment;
+			
+			private var _itemObj:Object;
+			
+			
+			public function get itemObj():Object
+			{
+				return _itemObj;
+			}
+			
+			public function set itemObj(value:Object):void
+			{
+				if(value == null){
+					return;
+				}
+				_itemObj = value;
+				if(String(value.post_id).length > 0){
+					post = new Post(value);
+				}
+				else if(String(value.post.post_id).length > 0){
+					comment = new Comment(value.comment);
+					comment.post_id = value.post.post_id;
+					comment.postPermalink = value.post.permalink;
+				}
+				else{
+					//comment = null;
+					comment = new Comment(value);
+				}
+			}
+			
+			
+			
+			public function get post():Post
+			{
+				return _post;
+			}
+			
+			public function set post(value:Post):void
+			{
+				_post = value;
+			}
+			
+			
+			public function get comment():Comment
+			{
+				return _comment;
+			}
+			
+			public function set comment(value:Comment):void
+			{
+				_comment = value;
+			}
+			
+			
+			
+			override protected function commitProperties() : void{
+				setData(data);
+			}
+			
+			
+			private function init():void{
+			}
+			
+			private function create():void{
+				if(post){
+					// 오리지널 포스트 검사 
+					originPostCheck();
+				}
+				//trace("craete time:", new Date().getTime() - createTime);
+				
+				
+				imageCheck();
+				createFaceImage();
+				
+				commentBtn.addEventListener(MouseEvent.CLICK, comment_clickHandler, false, 0, true);
+				metooBtn.addEventListener(MouseEvent.CLICK, metoo_clickHandler, false, 0, true);
+				todayText.addEventListener(TextEvent.LINK, todayText_linkHandler, false, 0, true);
+			}
+			
+			
+			public function destory():void{
+				commentBtn.removeEventListener(MouseEvent.CLICK, comment_clickHandler);
+				metooBtn.removeEventListener(MouseEvent.CLICK, metoo_clickHandler);
+				todayText.removeEventListener(TextEvent.LINK, todayText_linkHandler);
+				
+				itemObj = null;
+				post = null;
+				comment = null;
+				
+				originPostSmallBox = null;
+				originPostBox = null;
+				originPostIdArray = [];
+				if(imagePreview){
+					imagePreview.destory();
+					imagePreview = null;
+				}
+				if(commentBox){
+					commentBox.destory();
+					commentBox = null;
+				}
+				if(metooBox){
+					metooBox.destory();
+					metooBox = null;
+				}
+				
+				if(thumbImg){
+					thumbImg.removeEventListener(MouseEvent.CLICK, photo_clickHandler);
+					thumbImg = null;
+				}
+				if(face){
+					face.removeEventListener(MouseEvent.CLICK, user_clickHandler);
+					face = null;
+				}
+				if(faceUI){
+					faceUI = null;
+				}
+				
+				this.removeAllChildren();
+			}
+			
+			
+			
+			private function setData(item:Object):String{
+				// photo img 가져오기..
+				if(post){
+					face_url = post.author.face;
+					nickname = post.author.nickname;
+					
+					icon_url = post.iconUrl;
+					commentsCount = post.commentsCount;
+					metooCount = post.metooCount;
+					tag = post.tagText;
+				}
+				else if(comment){
+					face_url = comment.author.face;
+					nickname = comment.author.nickname;
+					commentsCount = "Reply";
+					metooLb.visible = false;
+				}
+				
+				var body:String;
+				
+				if(post){
+					body = post.body;
+				}
+				else if(comment){
+					body = "<font color='#fe721c'><b>[받은댓글] "+UserSetting.user_id+"</b></font><br>"+comment.body;
+				}
+				
+				
+				todayText.htmlText = MetieUtil.ahrefLinkReplace(body);
+				
+				// date 가져오기..
+				if(post){
+					date_ago = MetieUtil.getDateAgo(post.pubDate);
+				}
+				else if(comment){
+					date_ago = MetieUtil.getDateAgo(comment.pubDate);
+				}
+				
+				if(post && post.commentClosed == "true"){
+					commentBtn.visible = false;
+					commentLb.text = "comment closed";
+				}
+				
+				nickLb.text = nickname;
+				tagText.text = tag;
+				dateLb.text = date_ago;
+				commentBtn.label = commentsCount;
+				metooBtn.label = metooCount;
+				
+				return "";
+			}
+			
+			
+			
+			
+			private var originPostSmallBox:OriginPostBox;
+			
+			// 원본 글이 있으면 등록함..
+			private function originPostCheck():void{
+				
+				if(post && post.origin_post){
+					if(originPostSmallBox != null && contentVBox.getChildren().length > 0){
+						removeBox(originPostSmallBox);
+					}else{
+						originPostSmallBox = null;
+						originPostSmallBox = new OriginPostBox();
+						originPostSmallBox.post = post.origin_post;
+						originPostSmallBox.percentWidth = 100;
+						
+						if(!ori_y){
+							ori_y = this.height;
+							contentVBox.y = ori_y;
+						}
+						contentVBox.addChild(originPostSmallBox);
+					}
+					
+				}
+			}
+			
+			
+			
+			private var originPostBox:TodayTileListItemRenderer;
+			private var originPostIdArray:Array; // 원본 포스트 아이디 배열 
+			
+			
+			// 원본 글을 오픈합니다... 
+			public function openOriginPost(postItem:Post):void{
+				if(originPostIdArray == null){
+					originPostIdArray = [];
+				}
+				
+				// 이미 있는지 검사 
+				for(var i:int=0; i<originPostIdArray.length; i++){
+					if(originPostIdArray[i] == postItem.post_id){
+						return;
+					}
+				}
+				
+				originPostBox = null;
+				originPostBox = new TodayTileListItemRenderer();
+				originPostBox.post = postItem;
+				originPostBox.percentWidth = 100;
+				
+				if(!ori_y){
+					ori_y = this.height;
+					contentVBox.y = ori_y;
+				}
+				contentVBox.addChild(originPostBox);
+				originPostIdArray.push(postItem.post_id);
+			}
+			
+			
+			
+			// 원본 글 박스를 닫습니다...
+			public function closeOriginPost(postItem:Post):void{
+				// 이미 있는지 검사 
+				for(var i:int=0; i<originPostIdArray.length; i++){
+					if(originPostIdArray[i] == postItem.post_id){
+						
+						for(var k:int=contentVBox.getChildren().length; k>1; k--){
+							contentVBox.removeChildAt(k-1);
+							originPostIdArray.pop(); // 마지막 배열 삭제 
+						}
+						
+					}
+				}
+			}
+			
+			
+			
+			private var imagePreview:ImagePreview;
+			
+			private function photo_clickHandler(e:Event):void{
+				if(imagePreview == null){
+					imagePreview = new ImagePreview();
+				}
+				imagePreview.post = post;
+				
+				PopUpManager.addPopUp(imagePreview, this.parent as UIComponent, true);
+				PopUpManager.centerPopUp(imagePreview);
+			}
+			
+			private var ori_y:int;
+			private var commentBox:CommentBox;
+			
+			
+			protected function comment_clickHandler(event:MouseEvent):void
+			{
+				if(comment){
+					getFindPost(comment);
+				}
+				else{
+					openCommentBox(post.post_id);	
+				}
+			}
+			
+			
+			// 코멘트에 리플을 달 경우 .. 포스트를 찾아옵니다...
+			private function getFindPost(comment_item:Comment):void{
+				var findComment:FindCommentByPost = new FindCommentByPost();
+				findComment.addEventListener("find_comment", find_commentHandler);
+				findComment.addEventListener("notfind_comment", notfind_commentHandler);
+				findComment.comment = comment_item;
+			}
+			
+			private function find_commentHandler(e:Event):void{
+				var findComment:FindCommentByPost = e.target as FindCommentByPost;
+				//openCommentBox(findComment.result_post.post_id);
+				openOriginPost(findComment.result_post);
+				findComment = null;
+			}
+			
+			private function notfind_commentHandler(e:Event):void{
+				Alert.show("원본 포스트를 찾을 수가 없습니다.", "알림", 4, this);
+			}
+			
+			
+			// 코멘트 박스를 오픈 
+			private function openCommentBox(post_id:String):void{
+				removeBox(metooBox);
+				
+				if(commentBox != null && contentVBox.getChildren().length > 0){
+					removeBox(commentBox);
+				}
+				else{
+					commentBox = new CommentBox();
+					commentBox.percentWidth = 100;
+					commentBox.post_id = post_id;
+					
+					if(!ori_y){
+						ori_y = this.height;
+						contentVBox.y = ori_y;
+					}
+					contentVBox.addChildAt(commentBox, 0);
+				}
+			}
+			
+			
+			private function removeBox(box:UIComponent):void{
+				for(var i:int=0; i<contentVBox.getChildren().length; i++){
+					if(contentVBox.getChildren()[i] == box){
+						contentVBox.removeChild(contentVBox.getChildren()[i]);
+						contentVBox.getChildren()[i] = null;
+					}
+				}
+			}
+			
+			private var metooBox:MetooBox;
+			
+			private function metoo_clickHandler(e:Event):void{
+				
+				removeBox(commentBox);
+				
+				if(metooBox != null && contentVBox.getChildren().length > 0){
+					removeBox(metooBox);
+				}
+				else{
+					metooBox = new MetooBox();
+					metooBox.percentWidth = 100;
+					metooBox.post_id = post.post_id;
+					
+					if(!ori_y){
+						ori_y = this.height;
+						contentVBox.y = ori_y;
+					}
+					contentVBox.addChildAt(metooBox, 0);
+				}
+				
+			}
+			
+			
+			private var link_text:String;
+			
+			private function todayText_linkHandler(e:TextEvent):void{
+				link_text = e.text;
+				
+				if(e.text.indexOf("http://me2day.net/") != -1 && e.text.indexOf("#") == -1 && e.text.indexOf("app") == -1){
+					var uid:String = e.text.substring(e.text.lastIndexOf("/")+1, e.text.length);
+					this.dispatchEvent(new UserPostPageEvent("user_click", uid, true));
+				}
+				else{
+					Alert.show("브라우져에서 열겠습니까?", "알림", Alert.OK+Alert.CANCEL, this, close_linkHandler);
+				}
+			}
+			
+			private function close_linkHandler(e:CloseEvent):void{
+				if(Alert.OK == e.detail){
+					navigateToURL(new URLRequest(link_text), "_blank");
+				}
+			}
+			
+			
+			private function user_clickHandler(e:Event):void{
+				if(post){
+					this.dispatchEvent(new UserPostPageEvent("user_click", post.author.id, true));
+				}
+				else if(comment){
+					this.dispatchEvent(new UserPostPageEvent("user_click", comment.author.id, true));
+				}
+			}
+			
+			
+			// 이미지가 첨부되었는지 확인..
+			private function imageCheck():void{
+				if(icon_url && icon_url.length > 1){
+					createThumbImage();
+				}
+			}
+			
+			
+			private var thumbImg:Image;
+			
+			private function createThumbImage():void{
+				thumbImg = new Image();
+				thumbImg.source = icon_url;
+				thumbImg.smoothBitmapContent = true;
+				thumbImg.buttonMode = true;
+				thumbImg.addEventListener(MouseEvent.CLICK, photo_clickHandler, false, 0, true);
+				thumbImg.width = 40;
+				thumbImg.height = 40;
+				todayTextHbox.addChildAt(thumbImg, 0);
+			}
+			
+			
+			
+			private function createFaceImage():void{
+				createSimpleFaceImage();
+				return;
+				
+				/* var faceImg:CornerImage = new CornerImage();
+				faceImg.source = face_url;
+				faceImg.buttonMode = true;
+				faceImg.addEventListener(MouseEvent.CLICK, user_clickHandler, false, 0, true);
+				faceImg.width = 60;
+				faceImg.height = 60;
+				faceImg.smoothBitmapContent = true;
+				vbox.addChild(faceImg);
+				faceImg.filters = [shadow]; */
+			}
+			
+			private var face:SpriteWithBitmap;
+			private var faceUI:UIComponent;
+			
+			private function createSimpleFaceImage():void{
+				face = new SpriteWithBitmap(face_url);
+				face.buttonMode = true;
+				face.addEventListener(MouseEvent.CLICK, user_clickHandler, false, 0, true);
+				
+				faceUI = new UIComponent();
+				faceUI.addChild(face);
+				vbox.addChild(faceUI);
+				
+				faceUI.width = 60;
+				faceUI.height = 60;
+				face.filters = [shadow];
+			}
+			
+		]]>
+	</mx:Script>
+	<mx:DropShadowFilter id="shadow" distance="2" alpha="0.4" blurX="5" blurY="5" color="#666666" strength="1"/>
+	<mx:VBox id="vbox" x="2" y="2" width="72" height="90" verticalGap="4" horizontalAlign="center" paddingBottom="2" paddingLeft="2" paddingRight="2" paddingTop="4"/>
+	<mx:Canvas x="8" y="46" horizontalScrollPolicy="off" verticalScrollPolicy="off" width="60" backgroundAlpha="0.4" backgroundColor="#000000" color="#ffffff">
+		<mx:Label id="nickLb" styleName="todayText" letterSpacing="-1" fontSize="10" fontWeight="bold" horizontalCenter="0" verticalCenter="0" width="68" textAlign="center"/>
+	</mx:Canvas>
+	<mx:VBox id="textVbox" x="72" y="2" width="100%" paddingBottom="2" paddingLeft="2" paddingRight="2" paddingTop="2" verticalGap="1" verticalAlign="top">
+		<mx:HBox id="todayTextHbox" width="100%">
+			<mx:Text id="todayText" styleName="todayText" fontWeight="bold" selectable="true" width="100%" paddingLeft="2" paddingRight="2" paddingTop="2" paddingBottom="2" textAlign="left"/>
+		</mx:HBox>
+		<mx:Text id="tagText" styleName="tagText" fontWeight="bold" width="100%" selectable="false" paddingLeft="10" paddingRight="4"/>
+		<mx:HBox width="100%" horizontalGap="2" horizontalAlign="right" verticalAlign="middle">
+			<mx:Label id="dateLb" fontSize="9"/>
+			<mx:Label id="commentLb" text="comment" fontSize="9"/>
+			<mx:LinkButton id="commentBtn" fontWeight="bold" fontSize="10" styleName="{Styles.FONT_BROWN}"/>
+			<mx:Label id="metooLb" text="metoo" fontSize="9"/>
+			<mx:LinkButton id="metooBtn" fontWeight="bold" fontSize="10" styleName="{Styles.FONT_BROWN}"/>
+		</mx:HBox>
+	</mx:VBox>
+	<mx:VBox id="contentVBox" x="2" width="100%" paddingBottom="2" paddingLeft="2" paddingRight="2" paddingTop="2" verticalGap="1" verticalAlign="top"/>
+</comp:GradientCanvas>

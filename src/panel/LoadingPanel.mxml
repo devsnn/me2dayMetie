@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<comp:GradientCanvas creationComplete="create()" filters="{[shadow]}" xmlns:comp="comp.*" xmlns:mx="http://www.adobe.com/2006/mxml" width="110" height="50">
+	<mx:Script>
+		<![CDATA[
+			
+			public var textLabel:String = "불러오는 중";
+			
+			private var ind:Boolean = true;
+			private var mode:String = "event";
+			
+			public function manual(value:Boolean):void{
+				if(value){
+					ind = false;
+					mode = "manual";
+				}
+				else{
+					ind = true;
+					mode = "event";
+				}
+			}
+			
+			
+			private function create():void{
+				progressBar.indeterminate = ind;
+				progressBar.mode = mode;
+				textLb.text = textLabel;
+			}
+			
+		]]>
+	</mx:Script>
+	<mx:VBox width="100%" height="100%" horizontalAlign="center" verticalGap="1" paddingBottom="4" paddingLeft="4" paddingRight="4" paddingTop="4">
+		<mx:Label id="textLb" fontWeight="bold"/>
+		<mx:ProgressBar id="progressBar" width="80" labelPlacement="center" label=""/>
+	</mx:VBox>
+	<mx:DropShadowFilter id="shadow" distance="2" alpha="0.8" blurX="5" blurY="5" color="#333333" strength="1"/>
+</comp:GradientCanvas>

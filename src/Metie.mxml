@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:WindowedApplication preloader="assets.programmatic.CustomPreloader" creationComplete="create()" initialize="init()" horizontalScrollPolicy="off" verticalScrollPolicy="off" xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" width="400" minWidth="400" maxWidth="400" height="700" minHeight="220">
+	<mx:Style source="/css/skinPreview.css/"/>
+	<mx:Script>
+		<![CDATA[
+			import auth.AuthWindow;
+			import auth.MetieVerChecker;
+			
+			import com.lhd.MeConnect;
+			import com.lhd.events.MeConnectEvent;
+			
+			import flash.events.Event;
+			import flash.utils.getTimer;
+			
+			import mx.managers.PopUpManager;
+			
+			import org.codehaus.stomp.event.MessageEvent;
+			
+			import tools.MainViewTool;
+			
+			import util.AppSetting;
+			import util.TrayManager;
+			import util.UserSetting;
+			import util.messageservice.Me2MessageService;
+			
+			
+			
+			private function init():void{
+				
+				nativeApplication.addEventListener(Event.ACTIVATE, win_activateHandler);
+				nativeApplication.addEventListener(Event.DEACTIVATE, win_deactivateHandler);
+			}
+			
+			
+			private function win_activateHandler(e:Event):void{
+				if(stage){
+					stage.frameRate = 24;
+				}
+			}
+			
+			
+			private function win_deactivateHandler(e:Event):void{
+				if(stage){
+					stage.frameRate = 1;
+				}
+			}
+			
+			
+			private function on_endterFrameHandler(e:Event):void{
+				//trace(getTimer());
+			}
+			
+			
+			private function noopCheck():void{
+				var so:SharedObject = SharedObject.getLocal("metie");
+				
+				if(so.data.user_id != null){
+					UserSetting.user_id = so.data.user_id;
+					UserSetting.full_auth_token = so.data.full_auth_token;
+					trace("id:", UserSetting.user_id, UserSetting.full_auth_token);
+					
+					// 인증키가 있으면 인증체크 
+					var connect:MeConnect = new MeConnect();
+					connect.addEventListener(MeConnectEvent.ON_FAULT, noop_faultHandler);
+					connect.addEventListener(MeConnectEvent.NOOP_RESULT, noop_resultHandler);
+					connect.noop();
+				} else{			
+					authWindowPopup();
+				}
+			}
+			
+			
+			
+			private function app_closingHandler(e:Event):void{
+				e.preventDefault();
+				if(NativeApplication.supportsSystemTrayIcon){
+					stage.nativeWindow.visible = false;
+				}
+				else if(NativeApplication.supportsDockIcon){
+					stage.nativeWindow.visible = false;
+				}
+				
+				// 가려졌을때 cpu사용율을 최저로..
+				this.stage.frameRate = 1;
+			}
+			
+			
+			
+			
+			private function authWindowPopup():void{
+				var authWindow:AuthWindow = new AuthWindow();
+				PopUpManager.addPopUp(authWindow, this, true);
+				authWindow.addEventListener(Event.COMPLETE, auth_completeHandler);
+				PopUpManager.centerPopUp(authWindow);
+			}
+			
+			private function noop_resultHandler(e:MeConnectEvent):void{
+				if(e.data.code == "0"){
+					this.addEventListener(Event.CLOSING, app_closingHandler);
+					
+					TrayManager.getInstance.windowApp = this;
+					
+					view();
+					
+					Me2MessageService.auth(UserSetting.user_id, AppSetting.APP_KEY, UserSetting.full_auth_token);
+					//Me2MessageService.addEventListener(MessageEvent.MESSAGE,messageHandler);
+					
+				}
+				else{
+					authWindowPopup();
+				}
+			} 
+			
+			private function messageHandler(event:MessageEvent):void {
+				//trace(Me2MessageService.lastMessageBodyXML.toXMLString());
+			}
+			
+			
+			private function noop_faultHandler(e:MeConnectEvent):void{
+				authWindowPopup();
+			}
+			
+			
+			private function create():void{
+				var ver:MetieVerChecker = new MetieVerChecker();
+				PopUpManager.addPopUp(ver, this, true);
+				PopUpManager.centerPopUp(ver);
+				
+				ver.addEventListener(Event.COMPLETE, ver_completeHandler);
+				ver.start();
+			}
+			
+			private function ver_completeHandler(e:Event):void{
+				PopUpManager.removePopUp(e.target as MetieVerChecker);
+				noopCheck();
+			}
+			
+			private function auth_completeHandler(e:Event):void{
+				PopUpManager.removePopUp(e.target as AuthWindow);
+				view();
+			}
+			
+			
+			private function view():void{
+				stage.addEventListener(Event.ENTER_FRAME, on_endterFrameHandler);
+				var mainTool:MainViewTool = new MainViewTool();
+				mainTool.percentHeight = 100;
+				mainTool.percentWidth = 100;
+				this.addChild(mainTool);
+			}
+			
+		]]>
+	</mx:Script>
+</mx:WindowedApplication>

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:WindowedApplication creationComplete="create()" xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" xmlns:listtool="tools.listtool.*">
+	<mx:Script>
+		<![CDATA[
+			import com.lhd.MeConnect;
+			import com.lhd.events.MeConnectEvent;
+			
+			import flash.events.MouseEvent;
+			import flash.net.SharedObject;
+			
+			import util.UserSetting;
+			
+			
+			private function create():void{
+				noopCheck();
+			}
+			
+			
+			private function noopCheck():void{
+				var so:SharedObject = SharedObject.getLocal("metie");
+				UserSetting.user_id = "sedurn";
+				UserSetting.full_auth_token = "d953e5f758a995f11d4f60497f276ac5";
+				
+				// 인증키가 있으면 인증체크 
+				var connect:MeConnect = new MeConnect();
+				connect.addEventListener(MeConnectEvent.NOOP_RESULT, noop_resultHandler);
+				connect.noop();
+				
+			}
+			
+			private function noop_resultHandler(e:MeConnectEvent):void{
+				if(e.data.code == "0"){
+					itemListBox.post_type = "streamPost";
+				}
+			}				
+			
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				itemListBox.destory();
+				itemListBox.post_type = "streamPost";
+			}
+
+		]]>
+	</mx:Script>
+	<listtool:ItemListVbox id="itemListBox" width="100%" height="100%"/>
+	<mx:Button height="20" click="button1_clickHandler(event)" label="refresh"/>
+</mx:WindowedApplication>

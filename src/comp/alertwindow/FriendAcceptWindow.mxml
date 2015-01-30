@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<alertwindow:MetieWindow filters="{[shadow]}" showFlexChrome="false" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:comp="comp.*" xmlns:alertwindow="comp.alertwindow.*" width="300" height="90">
+	<mx:Script>
+		<![CDATA[
+			import com.lhd.MeConnect;
+			import com.lhd.events.MeConnectEvent;
+			
+			import flash.events.MouseEvent;
+			
+			[Bindable] public var labelText:String;
+
+			private var _from_user_id:String;
+			
+			public function get from_user_id():String
+			{
+				return _from_user_id;
+			}
+
+			public function set from_user_id(value:String):void
+			{
+				_from_user_id = value;
+			}
+
+			protected function ok_clickHandler(event:MouseEvent):void
+			{
+				var connect:MeConnect = new MeConnect();
+				connect.addEventListener(MeConnectEvent.ON_FAULT, accept_faultHandler);
+				connect.addEventListener(MeConnectEvent.ACCEPT_FRIEND, accept_resultHandler);
+				connect.accept_friend(from_user_id, textInput.getTextField().text);
+			}
+			
+			
+			private function accept_faultHandler(e:MeConnectEvent):void{
+				var connect:MeConnect = e.target as MeConnect;
+				connect.removeEventListener(MeConnectEvent.ON_FAULT, accept_faultHandler);
+				connect = null;
+				trace("fault", e.data);
+			}
+			
+			
+			private function accept_resultHandler(e:MeConnectEvent):void{
+				var connect:MeConnect = e.target as MeConnect;
+				connect.removeEventListener(MeConnectEvent.ACCEPT_FRIEND, accept_resultHandler);
+				connect = null;
+				trace("result", e.data);
+				this.dispatchEvent(new Event("alert_close"));
+			}
+
+
+			protected function cancel_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.dispatchEvent(new Event("alert_close"));
+			}
+
+		]]>
+	</mx:Script>
+	<mx:DropShadowFilter id="shadow" distance="2" alpha="0.4" blurX="5" blurY="5" color="#666666" strength="1"/>
+	<comp:GradientVBox width="100%" height="100%" horizontalAlign="center" paddingBottom="10" paddingLeft="10" paddingRight="10" paddingTop="10">
+		<mx:Label text="{labelText}" fontWeight="bold" fontSize="13" styleName="todayText" width="100%"/>
+		<comp:NovTextInput id="textInput" text="친구신청 감사합니다.^^" width="95%"/>
+		<mx:HBox width="95%" horizontalAlign="center">
+			<mx:Button label="수락" click="ok_clickHandler(event)" width="60" height="28"/>
+			<mx:Button label="거절" click="cancel_clickHandler(event)" width="60" height="28"/>
+		</mx:HBox>
+	</comp:GradientVBox>
+</alertwindow:MetieWindow>

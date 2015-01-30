@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:HBox xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" horizontalGap="2">
+	<mx:Metadata>
+		[Event(name="nickname_click",type="flash.events.Event")]
+	</mx:Metadata>
+	<mx:Script>
+		<![CDATA[
+			import flash.events.Event;
+			import flash.events.TextEvent;
+			import flash.net.URLRequest;
+			
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			
+			import response.Comment;
+			
+			import util.MetieUtil;
+			import util.Styles;
+			
+			private var _comment_item:Comment;
+			
+			[Bindable] private var nickname:String;
+			[Bindable] private var body:String;
+			
+			public function get write_id():String{
+				return comment_item.write_id;
+			}
+			
+			public function get comment_item():Comment
+			{
+				return _comment_item;
+			}
+			
+
+			public function set comment_item(value:Comment):void
+			{
+				_comment_item = value;
+				nickname = value.nickname;
+				
+				var text:String = value.body.replace(new RegExp("<a href='", "g"), "<font color='#3577BB'><b><a href='event:");
+				text = text.replace(new RegExp("</a>", "g"), "</a></b></font>");
+				
+				body = text+" <font size='9' color='#5c5154'>"+MetieUtil.getDateAgo(value.pubDate)+"</font>";
+			}
+			
+			private var link_text:String;
+			
+			private function text_linkHandler(e:TextEvent):void{
+				link_text = e.text;
+				
+				if(e.text.indexOf("http://me2day.net/") != -1 && e.text.indexOf("#") == -1){
+					var uid:String = e.text.substring(e.text.lastIndexOf("/")+1, e.text.length);
+					this.dispatchEvent(new UserPostPageEvent("user_click", uid, true));
+				}
+				else{
+					Alert.show("브라우져에서 열겠습니까?", "알림", Alert.OK+Alert.CANCEL, this, close_linkHandler);
+				}
+			}
+			
+			private function close_linkHandler(e:CloseEvent):void{
+				if(Alert.OK == e.detail){
+					navigateToURL(new URLRequest(link_text), "_blank");
+				}
+			}
+
+		]]>
+	</mx:Script>
+	<mx:LinkButton label="{nickname}" styleName="{Styles.FONT_SKY}" click="{dispatchEvent(new Event('nickname_click'))}"/>
+	<mx:Text htmlText="{body}" link="text_linkHandler(event)" width="100%" paddingLeft="2" paddingRight="2" paddingTop="2" paddingBottom="2" selectable="true"/>
+</mx:HBox>
